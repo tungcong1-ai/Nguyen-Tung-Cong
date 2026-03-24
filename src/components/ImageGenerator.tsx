@@ -361,7 +361,19 @@ export const ImageGenerator = ({ onBack }: ImageGeneratorProps) => {
                 </button>
               </div>
               
-              {history.length === 0 ? (
+              {!auth.currentUser ? (
+                <div className="py-12 text-center space-y-4">
+                  <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mx-auto">
+                    <Lock className="w-8 h-8 text-indigo-400" />
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="font-bold text-neutral-900">Đăng nhập để lưu lịch sử</h4>
+                    <p className="text-sm text-neutral-500 max-w-xs mx-auto">
+                      Bạn cần đăng nhập bằng Google để có thể lưu và xem lại các tác phẩm đã tạo.
+                    </p>
+                  </div>
+                </div>
+              ) : history.length === 0 ? (
                 <div className="py-12 text-center text-neutral-400">
                   <ImageIcon className="w-12 h-12 mx-auto mb-2 opacity-20" />
                   <p>Bạn chưa tạo ảnh nào gần đây.</p>

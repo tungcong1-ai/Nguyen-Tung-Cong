@@ -13,7 +13,7 @@ import { ImageGenerator } from './components/ImageGenerator';
 import { GameGenerator } from './components/GameGenerator';
 import { StudyAssistant } from './components/StudyAssistant';
 import { auth, onAuthStateChanged, signOut, doc, setDoc, db, User } from './firebase';
-import { Login } from './components/Auth';
+import { Login, LoginButton } from './components/Auth';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 export default function App() {
@@ -58,10 +58,6 @@ export default function App() {
     );
   }
 
-  if (!user) {
-    return <Login />;
-  }
-
   return (
     <ErrorBoundary>
       <div className="min-h-screen bg-neutral-50 text-neutral-900 font-sans">
@@ -76,21 +72,27 @@ export default function App() {
             </div>
 
             <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-neutral-100 rounded-full border border-neutral-200">
-                {user.photoURL ? (
-                  <img src={user.photoURL} alt={user.displayName || ''} className="w-6 h-6 rounded-full" />
-                ) : (
-                  <UserIcon className="w-4 h-4 text-neutral-500" />
-                )}
-                <span className="text-xs font-bold text-neutral-700 hidden sm:inline">{user.displayName}</span>
-              </div>
-              <button 
-                onClick={handleLogout}
-                className="p-2 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
-                title="Đăng xuất"
-              >
-                <LogOut className="w-5 h-5" />
-              </button>
+              {user ? (
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-neutral-100 rounded-full border border-neutral-200">
+                    {user.photoURL ? (
+                      <img src={user.photoURL} alt={user.displayName || ''} className="w-6 h-6 rounded-full" />
+                    ) : (
+                      <UserIcon className="w-4 h-4 text-neutral-500" />
+                    )}
+                    <span className="text-xs font-bold text-neutral-700 hidden sm:inline">{user.displayName}</span>
+                  </div>
+                  <button 
+                    onClick={handleLogout}
+                    className="p-2 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                    title="Đăng xuất"
+                  >
+                    <LogOut className="w-5 h-5" />
+                  </button>
+                </div>
+              ) : (
+                <LoginButton />
+              )}
             </div>
           </div>
         </header>

@@ -2357,7 +2357,19 @@ export const GameGenerator = ({ onBack }: GameGeneratorProps) => {
                   </button>
                 </div>
 
-                {isLoadingSaved ? (
+                {!auth.currentUser ? (
+                  <div className="flex-1 flex flex-col items-center justify-center space-y-6 text-center p-8">
+                    <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center shadow-inner">
+                      <Lock className="w-10 h-10 text-amber-400" />
+                    </div>
+                    <div className="space-y-2">
+                      <h4 className="text-lg font-bold text-neutral-800">Đăng nhập để lưu trò chơi</h4>
+                      <p className="text-sm text-neutral-500 max-w-xs mx-auto leading-relaxed">
+                        Bạn cần đăng nhập bằng Google để có thể lưu và chơi lại các trò chơi đã tạo.
+                      </p>
+                    </div>
+                  </div>
+                ) : isLoadingSaved ? (
                   <div className="flex-1 flex flex-col items-center justify-center space-y-4 text-neutral-400">
                     <Loader2 className="w-8 h-8 animate-spin" />
                     <p className="text-sm">Đang tải danh sách...</p>

@@ -10,13 +10,19 @@ import {
   Copy, 
   Check,
   HelpCircle,
-  AlertCircle
+  AlertCircle,
+  History,
+  Trash2,
+  Clock,
+  Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import * as d3 from 'd3';
 import * as mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
 import { summarizeText, generateMindMap, generateMCQs, MindMapNode, MCQ, testGeminiConnection } from '../services/geminiService';
+import { db, auth, handleFirestoreError } from '../firebase';
+import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, deleteDoc, doc } from 'firebase/firestore';
 
 // Set worker source for PDF.js using a more robust method for Vite
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
@@ -40,6 +46,8 @@ export const StudyAssistant: React.FC<Props> = ({ onBack }) => {
   const [showResults, setShowResults] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
   const [aiStatus, setAiStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+  const [history, setHistory] = useState<any[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
   
   const svgRef = useRef<SVGSVGElement>(null);
   const wordInputRef = useRef<HTMLInputElement>(null);
@@ -94,17 +102,34 @@ export const StudyAssistant: React.FC<Props> = ({ onBack }) => {
     if (!inputText.trim()) return;
     setLoading(true);
     try {
+      let result: any = null;
       if (activeTab === 'summary') {
-        const res = await summarizeText(inputText);
-        setSummary(res);
+        result = await summarizeText(inputText);
+        setSummary(result);
       } else if (activeTab === 'mindmap') {
-        const res = await generateMindMap(inputText);
-        setMindMapData(res);
+        result = await generateMindMap(inputText);
+        setMindMapData(result);
       } else if (activeTab === 'mcq') {
-        const res = await generateMCQs(inputText);
-        setMcqs(res);
+        result = await generateMCQs(inputText);
+        setMcqs(result);
         setUserAnswers({});
         setShowResults(false);
+      }
+
+      // Save to Firestore
+      if (auth.currentUser && result) {
+        const path = `users/${auth.currentUser.uid}/study_materials`;
+        try {
+          await addDoc(collection(db, path), {
+            userId: auth.currentUser.uid,
+            type: activeTab,
+            inputText: inputText.substring(0, 500), // Store snippet
+            result: result,
+            createdAt: serverTimestamp()
+          });
+        } catch (err) {
+          handleFirestoreError(err, 'write' as any, path);
+        }
       }
     } catch (error) {
       console.error(error);
@@ -295,6 +320,57 @@ export const StudyAssistant: React.FC<Props> = ({ onBack }) => {
   }, []);
 
   useEffect(() => {
+    if (!auth.currentUser) return;
+
+    const path = `users/${auth.currentUser.uid}/study_materials`;
+    const q = query(collection(db, path), orderBy('createdAt', 'desc'));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const docs = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setHistory(docs);
+    }, (err) => {
+      handleFirestoreError(err, 'get' as any, path);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const loadFromHistory = (item: any) => {
+    setInputText(item.inputText);
+    setActiveTab(item.type);
+    if (item.type === 'summary') {
+      setSummary(item.result);
+      setMindMapData(null);
+      setMcqs([]);
+    } else if (item.type === 'mindmap') {
+      setMindMapData(item.result);
+      setSummary('');
+      setMcqs([]);
+    } else if (item.type === 'mcq') {
+      setMcqs(item.result);
+      setSummary('');
+      setMindMapData(null);
+      setUserAnswers({});
+      setShowResults(false);
+    }
+    setShowHistory(false);
+  };
+
+  const deleteHistoryItem = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (!auth.currentUser) return;
+    const path = `users/${auth.currentUser.uid}/study_materials/${id}`;
+    try {
+      await deleteDoc(doc(db, path));
+    } catch (err) {
+      handleFirestoreError(err, 'delete' as any, path);
+    }
+  };
+
+  useEffect(() => {
     if (activeTab === 'mindmap' && mindMapData && svgRef.current) {
       renderMindMap();
     }
@@ -382,11 +458,148 @@ export const StudyAssistant: React.FC<Props> = ({ onBack }) => {
               </div>
             </div>
           </div>
-          <div className="w-20" /> {/* Spacer */}
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => setShowHistory(!showHistory)}
+              className={`p-2 rounded-xl transition-all flex items-center gap-2 font-bold text-sm ${
+                showHistory ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+              }`}
+            >
+              <History className="w-5 h-5" />
+              Lịch sử
+            </button>
+            <div className="w-20" /> {/* Spacer */}
+          </div>
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
+      <div className="max-w-7xl mx-auto px-4 py-8 flex gap-8">
+        {/* Sidebar History */}
+        <AnimatePresence>
+          {showHistory && (
+            <motion.div
+              initial={{ opacity: 0, x: -20, width: 0 }}
+              animate={{ opacity: 1, x: 0, width: 320 }}
+              exit={{ opacity: 0, x: -20, width: 0 }}
+              className="hidden lg:block overflow-hidden"
+            >
+              <div className="w-80 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-neutral-900 flex items-center gap-2">
+                    <Clock className="w-4 h-4" />
+                    Đã tạo gần đây
+                  </h3>
+                </div>
+                <div className="space-y-3 max-h-[calc(100vh-200px)] overflow-y-auto pr-2 custom-scrollbar">
+                  {!auth.currentUser ? (
+                    <div className="py-12 text-center space-y-4 px-4 bg-white rounded-2xl border border-dashed border-neutral-200">
+                      <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center mx-auto">
+                        <Lock className="w-6 h-6 text-blue-400" />
+                      </div>
+                      <div className="space-y-1">
+                        <h4 className="text-xs font-bold text-neutral-800">Đăng nhập để lưu</h4>
+                        <p className="text-[10px] text-neutral-500 leading-relaxed">
+                          Đăng nhập để xem lại các tài liệu đã tạo.
+                        </p>
+                      </div>
+                    </div>
+                  ) : history.length === 0 ? (
+                    <div className="text-center py-10 bg-white rounded-2xl border border-dashed border-neutral-200">
+                      <p className="text-xs text-neutral-400 font-medium">Chưa có lịch sử</p>
+                    </div>
+                  ) : (
+                    history.map((item) => (
+                      <div
+                        key={item.id}
+                        onClick={() => loadFromHistory(item)}
+                        className="bg-white p-4 rounded-2xl border border-neutral-200 hover:border-blue-500 hover:shadow-md transition-all cursor-pointer group relative"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1.5">
+                              {item.type === 'summary' && <FileText className="w-3 h-3 text-blue-500" />}
+                              {item.type === 'mindmap' && <Network className="w-3 h-3 text-indigo-500" />}
+                              {item.type === 'mcq' && <CheckSquare className="w-3 h-3 text-emerald-500" />}
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+                                {item.type === 'summary' ? 'Tóm tắt' : item.type === 'mindmap' ? 'Sơ đồ' : 'Trắc nghiệm'}
+                              </span>
+                            </div>
+                            <p className="text-xs font-bold text-neutral-800 line-clamp-2">
+                              {item.inputText}
+                            </p>
+                            <p className="text-[10px] text-neutral-400">
+                              {item.createdAt?.toDate ? item.createdAt.toDate().toLocaleString('vi-VN') : 'Đang lưu...'}
+                            </p>
+                          </div>
+                          <button
+                            onClick={(e) => deleteHistoryItem(e, item.id)}
+                            className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-50 text-neutral-400 hover:text-red-500 rounded-lg transition-all"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className="flex-1 space-y-8 max-w-5xl mx-auto">
+          {/* Mobile History Toggle */}
+          <div className="lg:hidden">
+            <button 
+              onClick={() => setShowHistory(!showHistory)}
+              className="w-full py-3 bg-white border border-neutral-200 rounded-2xl flex items-center justify-center gap-2 font-bold text-neutral-600"
+            >
+              <History className="w-5 h-5" />
+              {showHistory ? 'Ẩn lịch sử' : 'Xem lịch sử'}
+            </button>
+            
+            <AnimatePresence>
+              {showHistory && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mt-4 space-y-3 overflow-hidden"
+                >
+                  {history.map((item) => (
+                    <div
+                      key={item.id}
+                      onClick={() => loadFromHistory(item)}
+                      className="bg-white p-4 rounded-2xl border border-neutral-200 flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg ${
+                          item.type === 'summary' ? 'bg-blue-50 text-blue-600' :
+                          item.type === 'mindmap' ? 'bg-indigo-50 text-indigo-600' : 'bg-emerald-50 text-emerald-600'
+                        }`}>
+                          {item.type === 'summary' && <FileText className="w-4 h-4" />}
+                          {item.type === 'mindmap' && <Network className="w-4 h-4" />}
+                          {item.type === 'mcq' && <CheckSquare className="w-4 h-4" />}
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-neutral-800 line-clamp-1">{item.inputText}</p>
+                          <p className="text-[10px] text-neutral-400">
+                            {item.createdAt?.toDate ? item.createdAt.toDate().toLocaleString('vi-VN') : 'Đang lưu...'}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={(e) => deleteHistoryItem(e, item.id)}
+                        className="p-2 text-neutral-400 hover:text-red-500"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         {/* Input Section */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
@@ -679,6 +892,7 @@ export const StudyAssistant: React.FC<Props> = ({ onBack }) => {
             </div>
           </motion.div>
         )}
+      </div>
       </div>
     </div>
   );

@@ -3,6 +3,26 @@ import { motion } from 'motion/react';
 import { Sparkles, LogIn } from 'lucide-react';
 import { auth, googleProvider, signInWithPopup } from '../firebase';
 
+export const LoginButton: React.FC = () => {
+  const handleLogin = async () => {
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (error) {
+      console.error('Login error:', error);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleLogin}
+      className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-sm"
+    >
+      <LogIn className="w-4 h-4" />
+      <span className="text-sm">Đăng nhập</span>
+    </button>
+  );
+};
+
 export const Login: React.FC = () => {
   const handleLogin = async () => {
     try {
