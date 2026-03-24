@@ -1,0 +1,685 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { 
+  BookOpen, 
+  FileText, 
+  Network, 
+  CheckSquare, 
+  ChevronLeft, 
+  Loader2, 
+  Download, 
+  Copy, 
+  Check,
+  HelpCircle,
+  AlertCircle
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import * as d3 from 'd3';
+import * as mammoth from 'mammoth';
+import * as pdfjsLib from 'pdfjs-dist';
+import { summarizeText, generateMindMap, generateMCQs, MindMapNode, MCQ, testGeminiConnection } from '../services/geminiService';
+
+// Set worker source for PDF.js using a more robust method for Vite
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.mjs',
+  import.meta.url
+).toString();
+
+interface Props {
+  onBack: () => void;
+}
+
+export const StudyAssistant: React.FC<Props> = ({ onBack }) => {
+  const [inputText, setInputText] = useState('');
+  const [activeTab, setActiveTab] = useState<'summary' | 'mindmap' | 'mcq'>('summary');
+  const [loading, setLoading] = useState(false);
+  const [summary, setSummary] = useState('');
+  const [mindMapData, setMindMapData] = useState<MindMapNode | null>(null);
+  const [mcqs, setMcqs] = useState<MCQ[]>([]);
+  const [copied, setCopied] = useState(false);
+  const [userAnswers, setUserAnswers] = useState<Record<number, number>>({});
+  const [showResults, setShowResults] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [aiStatus, setAiStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+  
+  const svgRef = useRef<SVGSVGElement>(null);
+  const wordInputRef = useRef<HTMLInputElement>(null);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
+
+  const handleWordUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsExtracting(true);
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const result = await mammoth.extractRawText({ arrayBuffer });
+      setInputText(result.value);
+    } catch (error) {
+      console.error('Error parsing Word file:', error);
+      alert('Không thể đọc tệp Word. Vui lòng kiểm tra lại định dạng.');
+    } finally {
+      setIsExtracting(false);
+      if (wordInputRef.current) wordInputRef.current.value = '';
+    }
+  };
+
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsExtracting(true);
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      let fullText = '';
+      
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items.map((item: any) => item.str).join(' ');
+        fullText += pageText + '\n';
+      }
+      
+      setInputText(fullText);
+    } catch (error) {
+      console.error('Error parsing PDF file:', error);
+      alert('Không thể đọc tệp PDF. Vui lòng kiểm tra lại định dạng.');
+    } finally {
+      setIsExtracting(false);
+      if (pdfInputRef.current) pdfInputRef.current.value = '';
+    }
+  };
+
+  const handleProcess = async () => {
+    if (!inputText.trim()) return;
+    setLoading(true);
+    try {
+      if (activeTab === 'summary') {
+        const res = await summarizeText(inputText);
+        setSummary(res);
+      } else if (activeTab === 'mindmap') {
+        const res = await generateMindMap(inputText);
+        setMindMapData(res);
+      } else if (activeTab === 'mcq') {
+        const res = await generateMCQs(inputText);
+        setMcqs(res);
+        setUserAnswers({});
+        setShowResults(false);
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Có lỗi xảy ra khi xử lý. Vui lòng thử lại.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const exportSummary = () => {
+    if (!summary) return;
+    const blob = new Blob([summary], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'tom-tat-bai-hoc.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportMCQs = () => {
+    if (mcqs.length === 0) return;
+    let content = "CÂU HỎI TRẮC NGHIỆM\n\n";
+    mcqs.forEach((q, i) => {
+      content += `Câu ${i + 1}: ${q.question}\n`;
+      q.options.forEach((opt, j) => {
+        const isCorrect = j === q.answerIndex;
+        content += `${String.fromCharCode(65 + j)}. ${opt}${isCorrect ? ' (*)' : ''}\n`;
+      });
+      content += `Đáp án: ${String.fromCharCode(65 + q.answerIndex)}\n`;
+      content += `Giải thích: ${q.explanation}\n\n`;
+    });
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'cau-hoi-trac-nghiem.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportMCQsAsMindMap = () => {
+    if (mcqs.length === 0) return;
+    
+    // Convert MCQs to MindMapNode structure
+    const mcqMindMap: MindMapNode = {
+      id: 'root',
+      text: 'Câu hỏi trắc nghiệm',
+      children: mcqs.map((q, i) => ({
+        id: `q-${i}`,
+        text: `Câu ${i + 1}: ${q.question.substring(0, 50)}${q.question.length > 50 ? '...' : ''}`,
+        children: q.options.map((opt, j) => ({
+          id: `q-${i}-o-${j}`,
+          text: `${String.fromCharCode(65 + j)}. ${opt}${j === q.answerIndex ? ' (*)' : ''}`
+        }))
+      }))
+    };
+
+    // Create a temporary SVG for rendering
+    const tempDiv = document.createElement('div');
+    tempDiv.style.position = 'absolute';
+    tempDiv.style.left = '-9999px';
+    document.body.appendChild(tempDiv);
+    
+    const tempSvg = d3.select(tempDiv).append('svg')
+      .attr('width', 1200)
+      .attr('height', 800);
+
+    const width = 1200;
+    const height = 800;
+    const margin = { top: 40, right: 200, bottom: 40, left: 200 };
+
+    const g = tempSvg.append("g")
+      .attr("transform", `translate(${margin.left},${margin.top})`);
+
+    const tree = d3.tree<MindMapNode>().size([height - margin.top - margin.bottom, width - margin.left - margin.right]);
+    const root = d3.hierarchy(mcqMindMap);
+    tree(root);
+
+    // Links
+    g.selectAll(".link")
+      .data(root.links())
+      .enter().append("path")
+      .attr("class", "link")
+      .attr("fill", "none")
+      .attr("stroke", "#e2e8f0")
+      .attr("stroke-width", 2)
+      .attr("d", d3.linkHorizontal<any, any>()
+        .x(d => d.y)
+        .y(d => d.x));
+
+    // Nodes
+    const node = g.selectAll(".node")
+      .data(root.descendants())
+      .enter().append("g")
+      .attr("class", d => "node" + (d.children ? " node--internal" : " node--leaf"))
+      .attr("transform", d => `translate(${d.y},${d.x})`);
+
+    node.append("circle")
+      .attr("r", 8)
+      .attr("fill", d => d.depth === 0 ? "#4f46e5" : d.depth === 1 ? "#6366f1" : "#818cf8")
+      .attr("stroke", "#fff")
+      .attr("stroke-width", 2);
+
+    node.append("text")
+      .attr("dy", ".35em")
+      .attr("x", d => d.children ? -12 : 12)
+      .attr("text-anchor", d => d.children ? "end" : "start")
+      .text(d => d.data.text)
+      .style("font-size", "12px")
+      .style("font-weight", d => d.depth === 0 ? "bold" : "500")
+      .style("fill", "#1f2937")
+      .style("font-family", "Inter, sans-serif");
+
+    // Export as PNG
+    const serializer = new XMLSerializer();
+    const source = serializer.serializeToString(tempSvg.node() as SVGElement);
+    
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    const img = new Image();
+    
+    const svgBlob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+    
+    img.onload = () => {
+      canvas.width = 1200;
+      canvas.height = 800;
+      if (context) {
+        context.fillStyle = 'white';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(img, 0, 0);
+        const pngUrl = canvas.toDataURL('image/png');
+        const a = document.createElement('a');
+        a.href = pngUrl;
+        a.download = 'so-do-cau-hoi.png';
+        a.click();
+      }
+      URL.revokeObjectURL(url);
+      document.body.removeChild(tempDiv);
+    };
+    img.src = url;
+  };
+
+  const exportMindMap = () => {
+    if (!svgRef.current) return;
+    const svg = svgRef.current;
+    const serializer = new XMLSerializer();
+    const source = serializer.serializeToString(svg);
+    
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    const img = new Image();
+    
+    const svgBlob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+    
+    img.onload = () => {
+      canvas.width = 800;
+      canvas.height = 600;
+      if (context) {
+        context.fillStyle = 'white';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(img, 0, 0);
+        const pngUrl = canvas.toDataURL('image/png');
+        const a = document.createElement('a');
+        a.href = pngUrl;
+        a.download = 'so-do-tu-duy.png';
+        a.click();
+      }
+      URL.revokeObjectURL(url);
+    };
+    img.src = url;
+  };
+
+  useEffect(() => {
+    const checkConnection = async () => {
+      const isOnline = await testGeminiConnection();
+      setAiStatus(isOnline ? 'online' : 'offline');
+    };
+    checkConnection();
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'mindmap' && mindMapData && svgRef.current) {
+      renderMindMap();
+    }
+  }, [mindMapData, activeTab]);
+
+  const renderMindMap = () => {
+    if (!mindMapData || !svgRef.current) return;
+
+    const width = 800;
+    const height = 600;
+    const margin = { top: 40, right: 120, bottom: 40, left: 120 };
+
+    const svg = d3.select(svgRef.current);
+    svg.selectAll("*").remove();
+
+    const g = svg.append("g")
+      .attr("transform", `translate(${margin.left},${margin.top})`);
+
+    const tree = d3.tree<MindMapNode>().size([height - margin.top - margin.bottom, width - margin.left - margin.right]);
+    const root = d3.hierarchy(mindMapData);
+    tree(root);
+
+    // Links
+    g.selectAll(".link")
+      .data(root.links())
+      .enter().append("path")
+      .attr("class", "link")
+      .attr("fill", "none")
+      .attr("stroke", "#e2e8f0")
+      .attr("stroke-width", 2)
+      .attr("d", d3.linkHorizontal<any, any>()
+        .x(d => d.y)
+        .y(d => d.x));
+
+    // Nodes
+    const node = g.selectAll(".node")
+      .data(root.descendants())
+      .enter().append("g")
+      .attr("class", d => "node" + (d.children ? " node--internal" : " node--leaf"))
+      .attr("transform", d => `translate(${d.y},${d.x})`);
+
+    node.append("circle")
+      .attr("r", 8)
+      .attr("fill", d => d.depth === 0 ? "#4f46e5" : "#6366f1")
+      .attr("stroke", "#fff")
+      .attr("stroke-width", 2);
+
+    node.append("text")
+      .attr("dy", ".35em")
+      .attr("x", d => d.children ? -12 : 12)
+      .attr("text-anchor", d => d.children ? "end" : "start")
+      .text(d => d.data.text)
+      .style("font-size", "12px")
+      .style("font-weight", d => d.depth === 0 ? "bold" : "500")
+      .style("fill", "#1f2937")
+      .style("font-family", "Inter, sans-serif");
+  };
+
+  return (
+    <div className="min-h-screen bg-neutral-50 pb-20">
+      {/* Header */}
+      <div className="bg-white border-b border-neutral-200 sticky top-0 z-20">
+        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+          <button 
+            onClick={onBack}
+            className="flex items-center gap-2 text-neutral-500 hover:text-neutral-900 transition-colors font-medium"
+          >
+            <ChevronLeft className="w-5 h-5" />
+            Quay lại
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="bg-blue-600 p-2 rounded-lg">
+              <BookOpen className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold leading-tight">Trợ Lý Học Tập AI</h1>
+              <div className="flex items-center gap-1.5">
+                <div className={`w-1.5 h-1.5 rounded-full ${
+                  aiStatus === 'online' ? 'bg-green-500' : 
+                  aiStatus === 'offline' ? 'bg-red-500' : 'bg-yellow-500'
+                }`} />
+                <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
+                  AI {aiStatus === 'online' ? 'Sẵn sàng' : aiStatus === 'offline' ? 'Ngoại tuyến' : 'Đang kiểm tra...'}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="w-20" /> {/* Spacer */}
+        </div>
+      </div>
+
+      <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
+        {/* Input Section */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white rounded-3xl border border-neutral-200 shadow-sm p-6 space-y-4"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-neutral-900">
+              <FileText className="w-5 h-5 text-blue-600" />
+              <h2 className="font-bold text-lg">Văn bản cần xử lý</h2>
+            </div>
+            <div className="flex gap-2">
+              <input 
+                type="file" 
+                ref={wordInputRef} 
+                onChange={handleWordUpload} 
+                accept=".docx" 
+                className="hidden" 
+              />
+              <input 
+                type="file" 
+                ref={pdfInputRef} 
+                onChange={handlePdfUpload} 
+                accept=".pdf" 
+                className="hidden" 
+              />
+              <button 
+                onClick={() => wordInputRef.current?.click()}
+                disabled={isExtracting}
+                className="text-xs font-bold px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors flex items-center gap-1.5"
+              >
+                {isExtracting ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileText className="w-3 h-3" />}
+                Word
+              </button>
+              <button 
+                onClick={() => pdfInputRef.current?.click()}
+                disabled={isExtracting}
+                className="text-xs font-bold px-3 py-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors flex items-center gap-1.5"
+              >
+                {isExtracting ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileText className="w-3 h-3" />}
+                PDF
+              </button>
+            </div>
+          </div>
+          <textarea
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            placeholder="Dán nội dung tài liệu hoặc bài học của bạn vào đây..."
+            className="w-full h-48 p-4 rounded-2xl border border-neutral-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all resize-none text-neutral-700"
+          />
+          <div className="flex flex-wrap gap-4">
+            <button
+              onClick={() => setActiveTab('summary')}
+              className={`flex-1 py-3 px-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${
+                activeTab === 'summary' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+              }`}
+            >
+              <FileText className="w-5 h-5" /> Tóm tắt
+            </button>
+            <button
+              onClick={() => setActiveTab('mindmap')}
+              className={`flex-1 py-3 px-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${
+                activeTab === 'mindmap' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+              }`}
+            >
+              <Network className="w-5 h-5" /> Sơ đồ tư duy
+            </button>
+            <button
+              onClick={() => setActiveTab('mcq')}
+              className={`flex-1 py-3 px-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${
+                activeTab === 'mcq' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+              }`}
+            >
+              <CheckSquare className="w-5 h-5" /> Câu hỏi trắc nghiệm
+            </button>
+          </div>
+          <button
+            onClick={handleProcess}
+            disabled={loading || !inputText.trim()}
+            className="w-full py-4 bg-neutral-900 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-neutral-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Đang xử lý...
+              </>
+            ) : (
+              'Bắt đầu phân tích'
+            )}
+          </button>
+        </motion.div>
+
+        {/* Results Section */}
+        <AnimatePresence mode="wait">
+          {activeTab === 'summary' && summary && (
+            <motion.div
+              key="summary"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl border border-neutral-200 shadow-sm p-8 space-y-6"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-6 h-6 text-blue-600" />
+                  <h3 className="text-xl font-bold">Bản tóm tắt</h3>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={exportSummary}
+                    className="p-2 hover:bg-neutral-100 rounded-lg transition-colors text-neutral-500 flex items-center gap-2 text-sm font-bold"
+                    title="Xuất file văn bản"
+                  >
+                    <Download className="w-5 h-5" />
+                    Xuất TXT
+                  </button>
+                  <button 
+                    onClick={() => copyToClipboard(summary)}
+                    className="p-2 hover:bg-neutral-100 rounded-lg transition-colors text-neutral-500"
+                  >
+                    {copied ? <Check className="w-5 h-5 text-green-500" /> : <Copy className="w-5 h-5" />}
+                  </button>
+                </div>
+              </div>
+              <div className="prose prose-neutral max-w-none text-neutral-700 leading-relaxed whitespace-pre-wrap">
+                {summary}
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'mindmap' && mindMapData && (
+            <motion.div
+              key="mindmap"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl border border-neutral-200 shadow-sm p-8 space-y-6 overflow-hidden"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Network className="w-6 h-6 text-indigo-600" />
+                  <h3 className="text-xl font-bold">Sơ đồ tư duy</h3>
+                </div>
+                <button 
+                  onClick={exportMindMap}
+                  className="p-2 hover:bg-neutral-100 rounded-lg transition-colors text-neutral-500 flex items-center gap-2 text-sm font-bold"
+                >
+                  <Download className="w-5 h-5" />
+                  Xuất Ảnh
+                </button>
+              </div>
+              <div className="w-full overflow-x-auto bg-neutral-50 rounded-2xl border border-neutral-100">
+                <svg ref={svgRef} width="800" height="600" className="mx-auto" />
+              </div>
+              <p className="text-sm text-neutral-400 text-center italic">
+                * Sơ đồ được tạo tự động dựa trên cấu trúc nội dung của bạn.
+              </p>
+            </motion.div>
+          )}
+
+          {activeTab === 'mcq' && mcqs.length > 0 && (
+            <motion.div
+              key="mcq"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="space-y-6"
+            >
+              <div className="bg-white rounded-3xl border border-neutral-200 shadow-sm p-8 space-y-8">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckSquare className="w-6 h-6 text-emerald-600" />
+                    <h3 className="text-xl font-bold">Câu hỏi trắc nghiệm</h3>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={exportMCQsAsMindMap}
+                      className="p-2 hover:bg-neutral-100 rounded-lg transition-colors text-neutral-500 flex items-center gap-2 text-sm font-bold"
+                      title="Xuất sơ đồ câu hỏi (Ảnh)"
+                    >
+                      <Network className="w-5 h-5" />
+                      Sơ đồ Ảnh
+                    </button>
+                    <button 
+                      onClick={exportMCQs}
+                      className="p-2 hover:bg-neutral-100 rounded-lg transition-colors text-neutral-500 flex items-center gap-2 text-sm font-bold"
+                    >
+                      <Download className="w-5 h-5" />
+                      Xuất TXT
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="space-y-12">
+                  {mcqs.map((q, qIdx) => (
+                    <div key={qIdx} className="space-y-4">
+                      <div className="flex gap-4">
+                        <span className="flex-shrink-0 w-8 h-8 bg-neutral-100 rounded-full flex items-center justify-center font-bold text-neutral-500">
+                          {qIdx + 1}
+                        </span>
+                        <p className="text-lg font-bold text-neutral-800 pt-1">{q.question}</p>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-12">
+                        {q.options.map((opt, oIdx) => {
+                          const isSelected = userAnswers[qIdx] === oIdx;
+                          const isCorrect = oIdx === q.answerIndex;
+                          let bgColor = 'bg-white border-neutral-200 hover:border-emerald-200 hover:bg-emerald-50';
+                          
+                          if (showResults) {
+                            if (isCorrect) bgColor = 'bg-emerald-100 border-emerald-500 text-emerald-900';
+                            else if (isSelected) bgColor = 'bg-red-100 border-red-500 text-red-900';
+                            else bgColor = 'bg-white border-neutral-100 opacity-50';
+                          } else if (isSelected) {
+                            bgColor = 'bg-emerald-600 border-emerald-600 text-white';
+                          }
+
+                          return (
+                            <button
+                              key={oIdx}
+                              disabled={showResults}
+                              onClick={() => setUserAnswers(prev => ({ ...prev, [qIdx]: oIdx }))}
+                              className={`p-4 rounded-2xl border-2 text-left transition-all font-medium ${bgColor}`}
+                            >
+                              {opt}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {showResults && (
+                        <motion.div 
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="ml-12 p-4 bg-blue-50 rounded-2xl border border-blue-100 flex gap-3"
+                        >
+                          <HelpCircle className="w-5 h-5 text-blue-500 flex-shrink-0" />
+                          <p className="text-sm text-blue-800">
+                            <span className="font-bold">Giải thích:</span> {q.explanation}
+                          </p>
+                        </motion.div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {!showResults ? (
+                  <button
+                    onClick={() => setShowResults(true)}
+                    disabled={Object.keys(userAnswers).length < mcqs.length}
+                    className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-700 transition-all disabled:opacity-50"
+                  >
+                    Kiểm tra kết quả
+                  </button>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="p-6 bg-neutral-900 text-white rounded-3xl text-center space-y-2">
+                      <p className="text-neutral-400 font-bold uppercase tracking-wider text-xs">Kết quả của bạn</p>
+                      <h4 className="text-4xl font-black">
+                        {mcqs.filter((q, idx) => userAnswers[idx] === q.answerIndex).length} / {mcqs.length}
+                      </h4>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowResults(false);
+                        setUserAnswers({});
+                      }}
+                      className="w-full py-4 border-2 border-neutral-200 text-neutral-600 rounded-2xl font-bold hover:bg-neutral-50 transition-all"
+                    >
+                      Làm lại bài tập
+                    </button>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Empty State */}
+        {!loading && !summary && !mindMapData && mcqs.length === 0 && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center py-20 space-y-4"
+          >
+            <div className="w-20 h-20 bg-neutral-100 rounded-full flex items-center justify-center mx-auto">
+              <BookOpen className="w-10 h-10 text-neutral-300" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-xl font-bold text-neutral-400">Chưa có dữ liệu phân tích</h3>
+              <p className="text-neutral-400 max-w-xs mx-auto">Hãy dán văn bản của bạn vào ô phía trên và chọn một chức năng để bắt đầu.</p>
+            </div>
+          </motion.div>
+        )}
+      </div>
+    </div>
+  );
+};
