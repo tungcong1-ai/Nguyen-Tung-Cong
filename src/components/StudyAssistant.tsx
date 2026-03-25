@@ -201,12 +201,12 @@ export const StudyAssistant: React.FC<Props> = ({ onBack }) => {
     document.body.appendChild(tempDiv);
     
     const tempSvg = d3.select(tempDiv).append('svg')
-      .attr('width', 1200)
-      .attr('height', 800);
+      .attr('width', 1600)
+      .attr('height', 900);
 
-    const width = 1200;
-    const height = 800;
-    const margin = { top: 40, right: 200, bottom: 40, left: 200 };
+    const width = 1600;
+    const height = 900;
+    const margin = { top: 60, right: 300, bottom: 60, left: 200 };
 
     const g = tempSvg.append("g")
       .attr("transform", `translate(${margin.left},${margin.top})`);
@@ -294,8 +294,8 @@ export const StudyAssistant: React.FC<Props> = ({ onBack }) => {
     const url = URL.createObjectURL(svgBlob);
     
     img.onload = () => {
-      canvas.width = 800;
-      canvas.height = 600;
+      canvas.width = 1600;
+      canvas.height = 900;
       if (context) {
         context.fillStyle = 'white';
         context.fillRect(0, 0, canvas.width, canvas.height);
@@ -379,12 +379,15 @@ export const StudyAssistant: React.FC<Props> = ({ onBack }) => {
   const renderMindMap = () => {
     if (!mindMapData || !svgRef.current) return;
 
-    const width = 800;
-    const height = 600;
-    const margin = { top: 40, right: 120, bottom: 40, left: 120 };
+    const width = 1600;
+    const height = 900;
+    const margin = { top: 60, right: 300, bottom: 60, left: 150 };
 
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
+
+    svg.attr("viewBox", `0 0 ${width} ${height}`)
+       .attr("preserveAspectRatio", "xMidYMid meet");
 
     const g = svg.append("g")
       .attr("transform", `translate(${margin.left},${margin.top})`);
@@ -751,8 +754,8 @@ export const StudyAssistant: React.FC<Props> = ({ onBack }) => {
                   Xuất Ảnh
                 </button>
               </div>
-              <div className="w-full overflow-x-auto bg-neutral-50 rounded-2xl border border-neutral-100">
-                <svg ref={svgRef} width="800" height="600" className="mx-auto" />
+              <div className="w-full aspect-video bg-neutral-50 rounded-2xl border border-neutral-100 overflow-hidden">
+                <svg ref={svgRef} className="w-full h-full" />
               </div>
               <p className="text-sm text-neutral-400 text-center italic">
                 * Sơ đồ được tạo tự động dựa trên cấu trúc nội dung của bạn.
