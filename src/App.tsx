@@ -60,23 +60,23 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-neutral-50 text-neutral-900 font-sans">
+      <div className="min-h-screen font-sans">
         {/* Header */}
-        <header className="border-b border-neutral-200 bg-white sticky top-0 z-10">
+        <header className="glass-header">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <div className="flex items-center gap-2 cursor-pointer" onClick={() => setActiveModule('dashboard')}>
-              <div className="bg-indigo-600 p-2 rounded-lg">
+              <div className="bg-indigo-600 p-2 rounded-xl shadow-lg shadow-indigo-200">
                 <Sparkles className="w-6 h-6 text-white" />
               </div>
-              <h1 className="text-xl font-bold tracking-tight">AI Studio Creative</h1>
+              <h1 className="text-xl font-bold tracking-tight text-neutral-800">AI Studio Creative</h1>
             </div>
 
             <div className="flex items-center gap-4">
               {user ? (
                 <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2 px-3 py-1.5 bg-neutral-100 rounded-full border border-neutral-200">
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-white/50 backdrop-blur-sm rounded-full border border-white/40 shadow-sm">
                     {user.photoURL ? (
-                      <img src={user.photoURL} alt={user.displayName || ''} className="w-6 h-6 rounded-full" />
+                      <img src={user.photoURL} alt={user.displayName || ''} className="w-6 h-6 rounded-full ring-2 ring-indigo-100" />
                     ) : (
                       <UserIcon className="w-4 h-4 text-neutral-500" />
                     )}
@@ -108,10 +108,10 @@ export default function App() {
               className="max-w-6xl mx-auto space-y-12 py-12"
             >
               <div className="text-center space-y-4">
-                <h2 className="text-5xl font-black tracking-tight text-neutral-900">
-                  Sáng tạo không giới hạn với <span className="text-indigo-600">AI</span>
+                <h2 className="text-5xl font-black tracking-tight text-neutral-900 leading-tight">
+                  Hỗ trợ học tập và giảng dạy với <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">AI</span>
                 </h2>
-                <p className="text-xl text-neutral-500 max-w-2xl mx-auto">
+                <p className="text-lg text-neutral-500 max-w-2xl mx-auto font-medium">
                   Chọn một công cụ bên dưới để bắt đầu hành trình sáng tạo của bạn.
                 </p>
               </div>
@@ -120,26 +120,26 @@ export default function App() {
                 {/* Image Generator Card */}
                 <button 
                   onClick={() => setActiveModule('image')}
-                  className="group relative bg-white rounded-3xl border border-neutral-200 shadow-sm hover:shadow-xl hover:border-indigo-200 transition-all text-left overflow-hidden h-[400px] flex flex-col"
+                  className="group relative glass-card rounded-[2.5rem] hover:shadow-2xl hover:-translate-y-1 transition-all text-left overflow-hidden h-[420px] flex flex-col"
                 >
                   <div className="h-48 w-full overflow-hidden relative">
                     <img 
                       src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop" 
                       alt="AI Art" 
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                       referrerPolicy="no-referrer"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-white to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-white/70 to-transparent" />
                   </div>
-                  <div className="p-8 space-y-4 flex-1 relative z-10 -mt-12">
-                    <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
-                      <ImageIcon className="w-8 h-8" />
+                  <div className="p-8 space-y-4 flex-1 relative z-10">
+                    <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-indigo-200 -mt-16 relative z-20">
+                      <ImageIcon className="w-7 h-7" />
                     </div>
-                    <div>
-                      <h3 className="text-2xl font-bold">Trình Tạo Ảnh AI</h3>
-                      <p className="text-neutral-500 mt-2">Biến ý tưởng thành tác phẩm nghệ thuật, truyện tranh từ mô tả văn bản hoặc hình vẽ phác thảo.</p>
+                    <div className="pt-2">
+                      <h3 className="text-2xl font-black text-neutral-800">Trình Tạo Ảnh AI</h3>
+                      <p className="text-neutral-500 mt-2 text-sm leading-relaxed">Biến ý tưởng thành tác phẩm nghệ thuật, truyện tranh từ mô tả văn bản hoặc hình vẽ phác thảo.</p>
                     </div>
-                    <div className="flex items-center gap-2 text-indigo-600 font-bold pt-2">
+                    <div className="flex items-center gap-2 text-indigo-600 font-bold text-sm pt-2">
                       Bắt đầu sáng tạo <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                     </div>
                   </div>
@@ -148,26 +148,26 @@ export default function App() {
                 {/* Game Generator Card */}
                 <button 
                   onClick={() => setActiveModule('game')}
-                  className="group relative bg-white rounded-3xl border border-neutral-200 shadow-sm hover:shadow-xl hover:border-emerald-200 transition-all text-left overflow-hidden h-[400px] flex flex-col"
+                  className="group relative glass-card rounded-[2.5rem] hover:shadow-2xl hover:-translate-y-1 transition-all text-left overflow-hidden h-[420px] flex flex-col"
                 >
                   <div className="h-48 w-full overflow-hidden relative">
                     <img 
                       src="https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=1000&auto=format&fit=crop" 
                       alt="AI Gaming" 
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                       referrerPolicy="no-referrer"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-white to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-white/70 to-transparent" />
                   </div>
-                  <div className="p-8 space-y-4 flex-1 relative z-10 -mt-12">
-                    <div className="w-16 h-16 bg-emerald-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-200">
-                      <Gamepad2 className="w-8 h-8" />
+                  <div className="p-8 space-y-4 flex-1 relative z-10">
+                    <div className="w-14 h-14 bg-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-emerald-200 -mt-16 relative z-20">
+                      <Gamepad2 className="w-7 h-7" />
                     </div>
-                    <div>
-                      <h3 className="text-2xl font-bold">Trình Tạo Trò Chơi AI</h3>
-                      <p className="text-neutral-500 mt-2">Thiết kế các trò chơi phiêu lưu, trắc nghiệm hoặc giải đố độc đáo chỉ trong vài giây.</p>
+                    <div className="pt-2">
+                      <h3 className="text-2xl font-black text-neutral-800">Trình Tạo Trò Chơi AI</h3>
+                      <p className="text-neutral-500 mt-2 text-sm leading-relaxed">Thiết kế các trò chơi phiêu lưu, trắc nghiệm hoặc giải đố độc đáo chỉ trong vài giây.</p>
                     </div>
-                    <div className="flex items-center gap-2 text-emerald-600 font-bold pt-2">
+                    <div className="flex items-center gap-2 text-emerald-600 font-bold text-sm pt-2">
                       Bắt đầu thiết kế <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                     </div>
                   </div>
@@ -176,26 +176,26 @@ export default function App() {
                 {/* Study Assistant Card */}
                 <button 
                   onClick={() => setActiveModule('study')}
-                  className="group relative bg-white rounded-3xl border border-neutral-200 shadow-sm hover:shadow-xl hover:border-blue-200 transition-all text-left overflow-hidden h-[400px] flex flex-col md:col-span-2"
+                  className="group relative glass-card rounded-[2.5rem] hover:shadow-2xl hover:-translate-y-1 transition-all text-left overflow-hidden h-[420px] flex flex-col md:col-span-2"
                 >
-                  <div className="h-48 w-full overflow-hidden relative">
+                  <div className="h-56 w-full overflow-hidden relative">
                     <img 
-                      src="https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?q=80&w=1000&auto=format&fit=crop" 
+                      src="https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?q=80&w=1000&auto=format&fit=crop" 
                       alt="AI Study" 
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                       referrerPolicy="no-referrer"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-white to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-white/70 to-transparent" />
                   </div>
-                  <div className="p-8 space-y-4 flex-1 relative z-10 -mt-12">
-                    <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
-                      <BookOpen className="w-8 h-8" />
+                  <div className="p-8 space-y-4 flex-1 relative z-10">
+                    <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-blue-200 -mt-16 relative z-20">
+                      <BookOpen className="w-7 h-7" />
                     </div>
-                    <div>
-                      <h3 className="text-2xl font-bold">Trợ Lý Học Tập AI</h3>
-                      <p className="text-neutral-500 mt-2">Tóm tắt tài liệu, xây dựng sơ đồ tư duy và tạo câu hỏi trắc nghiệm thông minh.</p>
+                    <div className="pt-2">
+                      <h3 className="text-2xl font-black text-neutral-800">Trợ Lý Học Tập AI</h3>
+                      <p className="text-neutral-500 mt-2 text-sm leading-relaxed">Tóm tắt tài liệu, xây dựng sơ đồ tư duy và tạo câu hỏi trắc nghiệm thông minh.</p>
                     </div>
-                    <div className="flex items-center gap-2 text-blue-600 font-bold pt-2">
+                    <div className="flex items-center gap-2 text-blue-600 font-bold text-sm pt-2">
                       Bắt đầu học tập <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                     </div>
                   </div>

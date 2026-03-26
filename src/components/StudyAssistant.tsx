@@ -14,7 +14,11 @@ import {
   History,
   Trash2,
   Clock,
-  Lock
+  Lock,
+  ZoomIn,
+  ZoomOut,
+  Maximize,
+  RotateCcw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import * as d3 from 'd3';
@@ -386,50 +390,139 @@ export const StudyAssistant: React.FC<Props> = ({ onBack }) => {
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
 
-    svg.attr("viewBox", `0 0 ${width} ${height}`)
-       .attr("preserveAspectRatio", "xMidYMid meet");
+    // Create a container for all elements to allow zooming
+    const container = svg.append("g");
 
-    const g = svg.append("g")
+    const zoom = d3.zoom<SVGSVGElement, unknown>()
+      .scaleExtent([0.1, 5])
+      .on("zoom", (event) => {
+        container.attr("transform", event.transform);
+      });
+
+    svg.call(zoom);
+
+    svg.attr("viewBox", `0 0 ${width} ${height}`)
+       .attr("preserveAspectRatio", "xMidYMid meet")
+       .style("cursor", "grab");
+
+    const g = container.append("g")
       .attr("transform", `translate(${margin.left},${margin.top})`);
 
+    // Use a local copy of hierarchy to manage collapse state
+    const root = d3.hierarchy(mindMapData) as d3.HierarchyNode<MindMapNode> & { x0?: number; y0?: number; _children?: d3.HierarchyNode<MindMapNode>[] };
+    root.x0 = height / 2;
+    root.y0 = 0;
+
     const tree = d3.tree<MindMapNode>().size([height - margin.top - margin.bottom, width - margin.left - margin.right]);
-    const root = d3.hierarchy(mindMapData);
-    tree(root);
 
-    // Links
-    g.selectAll(".link")
-      .data(root.links())
-      .enter().append("path")
-      .attr("class", "link")
-      .attr("fill", "none")
-      .attr("stroke", "#e2e8f0")
-      .attr("stroke-width", 2)
-      .attr("d", d3.linkHorizontal<any, any>()
-        .x(d => d.y)
-        .y(d => d.x));
+    function update(source: any) {
+      const nodes = root.descendants();
+      const links = root.links();
 
-    // Nodes
-    const node = g.selectAll(".node")
-      .data(root.descendants())
-      .enter().append("g")
-      .attr("class", d => "node" + (d.children ? " node--internal" : " node--leaf"))
-      .attr("transform", d => `translate(${d.y},${d.x})`);
+      tree(root);
 
-    node.append("circle")
-      .attr("r", 8)
-      .attr("fill", d => d.depth === 0 ? "#4f46e5" : "#6366f1")
-      .attr("stroke", "#fff")
-      .attr("stroke-width", 2);
+      // Update nodes
+      const node = g.selectAll<SVGGElement, any>("g.node")
+        .data(nodes, (d: any) => d.data.text + d.depth);
 
-    node.append("text")
-      .attr("dy", ".35em")
-      .attr("x", d => d.children ? -12 : 12)
-      .attr("text-anchor", d => d.children ? "end" : "start")
-      .text(d => d.data.text)
-      .style("font-size", "12px")
-      .style("font-weight", d => d.depth === 0 ? "bold" : "500")
-      .style("fill", "#1f2937")
-      .style("font-family", "Inter, sans-serif");
+      const nodeEnter = node.enter().append("g")
+        .attr("class", "node")
+        .attr("transform", d => `translate(${source.y0 || 0},${source.x0 || 0})`)
+        .on("click", (event, d: any) => {
+          if (d.children) {
+            d._children = d.children;
+            d.children = null;
+          } else {
+            d.children = d._children;
+            d._children = null;
+          }
+          update(d);
+        })
+        .style("cursor", d => (d.children || d._children) ? "pointer" : "default");
+
+      nodeEnter.append("circle")
+        .attr("r", 10)
+        .attr("fill", d => d.depth === 0 ? "#4f46e5" : d._children ? "#818cf8" : "#fff")
+        .attr("stroke", d => d.depth === 0 ? "#4f46e5" : "#6366f1")
+        .attr("stroke-width", 2);
+
+      nodeEnter.append("text")
+        .attr("dy", ".35em")
+        .attr("x", d => (d.children || d._children) ? -15 : 15)
+        .attr("text-anchor", d => (d.children || d._children) ? "end" : "start")
+        .text(d => d.data.text)
+        .style("font-size", "14px")
+        .style("font-weight", d => d.depth === 0 ? "bold" : "500")
+        .style("fill", "#1f2937")
+        .style("font-family", "Inter, sans-serif")
+        .style("pointer-events", "none");
+
+      const nodeUpdate = nodeEnter.merge(node);
+
+      nodeUpdate.transition()
+        .duration(500)
+        .attr("transform", d => `translate(${d.y},${d.x})`);
+
+      nodeUpdate.select("circle")
+        .attr("fill", d => d.depth === 0 ? "#4f46e5" : d._children ? "#818cf8" : "#fff");
+
+      const nodeExit = node.exit().transition()
+        .duration(500)
+        .attr("transform", d => `translate(${source.y},${source.x})`)
+        .remove();
+
+      // Update links
+      const link = g.selectAll<SVGPathElement, any>("path.link")
+        .data(links, (d: any) => d.target.data.text + d.target.depth);
+
+      const linkEnter = link.enter().insert("path", "g")
+        .attr("class", "link")
+        .attr("fill", "none")
+        .attr("stroke", "#e2e8f0")
+        .attr("stroke-width", 2)
+        .attr("d", d => {
+          const o = { x: source.x0 || 0, y: source.y0 || 0 };
+          return d3.linkHorizontal<any, any>()
+            .x(d => d.y)
+            .y(d => d.x)({ source: o, target: o });
+        });
+
+      const linkUpdate = linkEnter.merge(link);
+
+      linkUpdate.transition()
+        .duration(500)
+        .attr("d", d3.linkHorizontal<any, any>()
+          .x(d => d.y)
+          .y(d => d.x));
+
+      link.exit().transition()
+        .duration(500)
+        .attr("d", d => {
+          const o = { x: source.x, y: source.y };
+          return d3.linkHorizontal<any, any>()
+            .x(d => d.y)
+            .y(d => d.x)({ source: o, target: o });
+        })
+        .remove();
+
+      nodes.forEach((d: any) => {
+        d.x0 = d.x;
+        d.y0 = d.y;
+      });
+    }
+
+    update(root);
+
+    // Initial zoom to fit
+    svg.transition().duration(750).call(
+      zoom.transform,
+      d3.zoomIdentity.translate(0, 0).scale(1)
+    );
+
+    // Expose zoom functions to window for UI buttons
+    (window as any).zoomIn = () => svg.transition().call(zoom.scaleBy, 1.3);
+    (window as any).zoomOut = () => svg.transition().call(zoom.scaleBy, 0.7);
+    (window as any).resetZoom = () => svg.transition().call(zoom.transform, d3.zoomIdentity);
   };
 
   return (
@@ -746,13 +839,38 @@ export const StudyAssistant: React.FC<Props> = ({ onBack }) => {
                   <Network className="w-6 h-6 text-indigo-600" />
                   <h3 className="text-xl font-bold">Sơ đồ tư duy</h3>
                 </div>
-                <button 
-                  onClick={exportMindMap}
-                  className="p-2 hover:bg-neutral-100 rounded-lg transition-colors text-neutral-500 flex items-center gap-2 text-sm font-bold"
-                >
-                  <Download className="w-5 h-5" />
-                  Xuất Ảnh
-                </button>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center bg-neutral-100 rounded-xl p-1 mr-4">
+                    <button 
+                      onClick={() => (window as any).zoomIn?.()}
+                      className="p-2 hover:bg-white rounded-lg transition-all text-neutral-600"
+                      title="Phóng to"
+                    >
+                      <ZoomIn className="w-4 h-4" />
+                    </button>
+                    <button 
+                      onClick={() => (window as any).zoomOut?.()}
+                      className="p-2 hover:bg-white rounded-lg transition-all text-neutral-600"
+                      title="Thu nhỏ"
+                    >
+                      <ZoomOut className="w-4 h-4" />
+                    </button>
+                    <button 
+                      onClick={() => (window as any).resetZoom?.()}
+                      className="p-2 hover:bg-white rounded-lg transition-all text-neutral-600"
+                      title="Đặt lại"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <button 
+                    onClick={exportMindMap}
+                    className="p-2 hover:bg-neutral-100 rounded-lg transition-colors text-neutral-500 flex items-center gap-2 text-sm font-bold"
+                  >
+                    <Download className="w-5 h-5" />
+                    Xuất Ảnh
+                  </button>
+                </div>
               </div>
               <div className="w-full aspect-video bg-neutral-50 rounded-2xl border border-neutral-100 overflow-hidden">
                 <svg ref={svgRef} className="w-full h-full" />

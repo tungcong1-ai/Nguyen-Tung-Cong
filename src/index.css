@@ -1,1 +1,28 @@
 @import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-[#f8f9ff] text-neutral-900;
+    background-image: 
+      radial-gradient(at 0% 0%, rgba(199, 210, 254, 0.4) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, rgba(254, 202, 202, 0.3) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(254, 243, 199, 0.3) 0px, transparent 50%),
+      radial-gradient(at 0% 100%, rgba(224, 231, 255, 0.4) 0px, transparent 50%);
+    background-attachment: fixed;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-white/70 backdrop-blur-xl border border-white/40 shadow-xl shadow-indigo-500/5;
+  }
+  
+  .glass-header {
+    @apply bg-white/60 backdrop-blur-md border-b border-white/30 sticky top-0 z-50;
+  }
+}

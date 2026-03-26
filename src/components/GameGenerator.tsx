@@ -41,11 +41,10 @@ import {
   Skull
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { generateGame, generateImage, GameContent } from '../services/geminiService';
+import { generateGame, generateImage, GameContent, getAI } from '../services/geminiService';
 import { db, auth, doc, setDoc, getDoc, collection, handleFirestoreError, OperationType, getDocs, query, orderBy } from '../firebase';
 import * as XLSX from 'xlsx';
 import { serverTimestamp } from 'firebase/firestore';
-import { GoogleGenAI } from "@google/genai";
 
 interface Question {
   text: string;
@@ -1314,7 +1313,7 @@ export const GameGenerator = ({ onBack }: GameGeneratorProps) => {
       });
 
       // Generate new questions and monsters for this theme
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+      const ai = getAI();
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: [{ parts: [{ text: `Tạo 10 câu hỏi trắc nghiệm và 3 quái vật mới cho chủ đề "${theme.name}" trong trò chơi giáo dục. 
