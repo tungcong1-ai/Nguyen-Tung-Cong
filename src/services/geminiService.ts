@@ -29,14 +29,16 @@ const enhancePrompt = async (text: string, isComic: boolean = false): Promise<st
   try {
     const ai = getAI();
     const systemInstruction = `You are an expert prompt engineer for AI image generation. 
-    Your task is to take a Vietnamese input (which might have typos, missing accents, or unclear phrasing) and transform it into a highly detailed, professional English prompt for an image generation model.
+    Your task is to take a Vietnamese input and transform it into a SINGLE, highly detailed, professional English description for an image generation model.
     
     Rules:
     1. Correct any Vietnamese spelling or diacritic errors in the original text.
     2. Expand the description with visual details in English.
-    3. IMPORTANT: If there is dialogue or text that should appear inside the image (like in speech bubbles or captions), keep that specific text in VIETNAMESE.
-    4. Clearly specify in the prompt that any text rendered in the image MUST be in Vietnamese with correct accents.
-    5. Output ONLY the enhanced prompt. No explanations.`;
+    3. IMPORTANT: Merge all provided details into a SINGLE coherent scene. DO NOT create multiple scenarios or options.
+    4. If there is dialogue or text that should appear inside the image (like in speech bubbles or captions), keep that specific text in VIETNAMESE.
+    5. Clearly specify in the prompt that any text rendered in the image MUST be in Vietnamese with correct accents.
+    6. Output ONLY the descriptive text. DO NOT include phrases like "Generate an image", "Create a picture", or "A photo of".
+    7. Output ONLY the enhanced description. No explanations.`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -59,64 +61,26 @@ export interface ImageGenerationParams {
   lighting: string;
   color: string;
   camera: string;
-  referenceImage?: string; // base64 string
-  referenceType?: 'composition' | 'style' | 'subject';
 }
 
 export const generateImage = async (params: ImageGenerationParams): Promise<string> => {
   const ai = getAI();
   
-  // Enhance the prompt first
-  const enhancedSubject = await enhancePrompt(params.subject);
-  const enhancedContext = await enhancePrompt(params.actionContext);
+  // Combine subject and context for a single enhancement call
+  const combinedInput = `${params.subject}. ${params.actionContext}`.trim();
+  const enhancedPrompt = await enhancePrompt(combinedInput);
 
-  let referenceInstruction = "";
-  if (params.referenceImage) {
-    switch (params.referenceType) {
-      case 'composition':
-        referenceInstruction = "CRITICAL: Use the provided image strictly as a structural and compositional guide. Follow the shapes, layout, and positions of elements shown in the reference.";
-        break;
-      case 'style':
-        referenceInstruction = "Use the provided image as a style reference. Mimic the artistic technique, color palette, and overall aesthetic of the reference image.";
-        break;
-      case 'subject':
-        referenceInstruction = "Use the provided image as a detailed reference for the main subject. Replicate the specific features, clothing, or appearance of the character/object shown.";
-        break;
-      default:
-        referenceInstruction = "Use the provided image as a visual reference for style, composition, or subject details.";
-    }
-  }
-
-  const prompt = `Generate an image with the following details:
-  - Main subject: ${enhancedSubject}
-  - Action and context: ${enhancedContext}
-  - Style: ${params.style}
-  - Lighting: ${params.lighting}
-  - Color palette: ${params.color}
-  - Camera angle and composition: ${params.camera}
-  
-  ${referenceInstruction}
-  
-  The image should be high quality and visually appealing.`;
-
-  const parts: any[] = [{ text: prompt }];
-
-  if (params.referenceImage) {
-    const base64Data = params.referenceImage.split(',')[1] || params.referenceImage;
-    parts.push({
-      inlineData: {
-        mimeType: "image/png",
-        data: base64Data,
-      },
-    });
-  }
+  const prompt = `A high quality, visually appealing image.
+  Description: ${enhancedPrompt}
+  Style: ${params.style}. 
+  Lighting: ${params.lighting}. 
+  Color palette: ${params.color}. 
+  Camera angle and composition: ${params.camera}.`;
 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
-      contents: {
-        parts: parts,
-      },
+      contents: [{ parts: [{ text: prompt }] }],
       config: {
         imageConfig: {
           aspectRatio: "1:1",
@@ -160,36 +124,19 @@ export const generateComic = async (params: ComicGenerationParams): Promise<stri
 
   // We generate images one by one for each page/panel
   for (let i = 1; i <= params.numPages; i++) {
-    const prompt = `Generate a comic book page (Page ${i} of ${params.numPages}) based on this script:
-    Script: ${enhancedScript}
-    
-    Focus on this specific part of the story for this page.
-    Style: ${params.style} (Comic book style)
-    Lighting: ${params.lighting}
-    Color palette: ${params.color}
-    Camera angle: ${params.camera}
-    
-    The image should look like a professional comic book page with panels and speech bubbles if appropriate.
-    ${params.referenceImage ? "Use the provided image as a visual reference for character consistency." : ""}
-    High quality, detailed, and visually consistent with previous pages.`;
-
-    const parts: any[] = [{ text: prompt }];
-    if (params.referenceImage) {
-      const base64Data = params.referenceImage.split(',')[1] || params.referenceImage;
-      parts.push({
-        inlineData: {
-          mimeType: "image/png",
-          data: base64Data,
-        },
-      });
-    }
+    const prompt = `A professional comic book page (Page ${i} of ${params.numPages}) with panels and speech bubbles. 
+    IMPORTANT: Focus ONLY on the content for Page ${i} from the following script.
+    Script: ${enhancedScript}. 
+    Style: ${params.style} (Comic book style). 
+    Lighting: ${params.lighting}. 
+    Color palette: ${params.color}. 
+    Camera angle: ${params.camera}. 
+    High quality, detailed, and visually consistent.`;
 
     try {
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash-image',
-        contents: {
-          parts: parts,
-        },
+        contents: [{ parts: [{ text: prompt }] }],
         config: {
           imageConfig: {
             aspectRatio: "3:4", // Comic pages are often portrait

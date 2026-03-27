@@ -542,7 +542,15 @@ export const StudyAssistant: React.FC<Props> = ({ onBack }) => {
               <BookOpen className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold leading-tight">Trợ Lý Học Tập AI</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-lg font-bold leading-tight">Trợ Lý Học Tập AI</h1>
+                <div className="group relative">
+                  <HelpCircle className="w-3.5 h-3.5 text-neutral-400 cursor-help" />
+                  <div className="absolute left-0 bottom-full mb-2 w-64 p-2 bg-neutral-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 font-normal">
+                    Trợ lý học tập thông minh sử dụng AI để tóm tắt, tạo sơ đồ tư duy và câu hỏi trắc nghiệm từ tài liệu của bạn.
+                  </div>
+                </div>
+              </div>
               <div className="flex items-center gap-1.5">
                 <div className={`w-1.5 h-1.5 rounded-full ${
                   aiStatus === 'online' ? 'bg-green-500' : 
@@ -706,6 +714,12 @@ export const StudyAssistant: React.FC<Props> = ({ onBack }) => {
             <div className="flex items-center gap-2 text-neutral-900">
               <FileText className="w-5 h-5 text-blue-600" />
               <h2 className="font-bold text-lg">Văn bản cần xử lý</h2>
+              <div className="group relative">
+                <HelpCircle className="w-4 h-4 text-neutral-400 cursor-help" />
+                <div className="absolute left-0 bottom-full mb-2 w-64 p-2 bg-neutral-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 font-normal">
+                  Dán nội dung văn bản hoặc tải lên tệp tài liệu để bắt đầu phân tích.
+                </div>
+              </div>
             </div>
             <div className="flex gap-2">
               <input 
@@ -725,18 +739,28 @@ export const StudyAssistant: React.FC<Props> = ({ onBack }) => {
               <button 
                 onClick={() => wordInputRef.current?.click()}
                 disabled={isExtracting}
-                className="text-xs font-bold px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors flex items-center gap-1.5"
+                className="text-xs font-bold px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors flex items-center gap-1.5 group relative"
               >
                 {isExtracting ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileText className="w-3 h-3" />}
                 Word
+                <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                  <div className="bg-neutral-900 text-white text-[10px] p-2 rounded-lg w-48 font-normal shadow-xl">
+                    Tải lên tài liệu Word (.docx) để AI phân tích.
+                  </div>
+                </div>
               </button>
               <button 
                 onClick={() => pdfInputRef.current?.click()}
                 disabled={isExtracting}
-                className="text-xs font-bold px-3 py-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors flex items-center gap-1.5"
+                className="text-xs font-bold px-3 py-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors flex items-center gap-1.5 group relative"
               >
                 {isExtracting ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileText className="w-3 h-3" />}
                 PDF
+                <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                  <div className="bg-neutral-900 text-white text-[10px] p-2 rounded-lg w-48 font-normal shadow-xl">
+                    Tải lên tài liệu PDF để AI phân tích.
+                  </div>
+                </div>
               </button>
             </div>
           </div>
@@ -749,27 +773,42 @@ export const StudyAssistant: React.FC<Props> = ({ onBack }) => {
           <div className="flex flex-wrap gap-4">
             <button
               onClick={() => setActiveTab('summary')}
-              className={`flex-1 py-3 px-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${
+              className={`flex-1 py-3 px-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all group relative ${
                 activeTab === 'summary' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
               }`}
             >
               <FileText className="w-5 h-5" /> Tóm tắt
+              <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                <div className="bg-neutral-900 text-white text-[10px] p-2 rounded-lg w-48 font-normal shadow-xl">
+                  Tạo bản tóm tắt ngắn gọn, súc tích từ nội dung tài liệu.
+                </div>
+              </div>
             </button>
             <button
               onClick={() => setActiveTab('mindmap')}
-              className={`flex-1 py-3 px-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${
+              className={`flex-1 py-3 px-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all group relative ${
                 activeTab === 'mindmap' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
               }`}
             >
               <Network className="w-5 h-5" /> Sơ đồ tư duy
+              <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                <div className="bg-neutral-900 text-white text-[10px] p-2 rounded-lg w-48 font-normal shadow-xl">
+                  Tự động tạo sơ đồ tư duy trực quan để dễ dàng ghi nhớ kiến thức.
+                </div>
+              </div>
             </button>
             <button
               onClick={() => setActiveTab('mcq')}
-              className={`flex-1 py-3 px-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${
+              className={`flex-1 py-3 px-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all group relative ${
                 activeTab === 'mcq' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
               }`}
             >
               <CheckSquare className="w-5 h-5" /> Câu hỏi trắc nghiệm
+              <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                <div className="bg-neutral-900 text-white text-[10px] p-2 rounded-lg w-48 font-normal shadow-xl">
+                  Tạo các câu hỏi trắc nghiệm để kiểm tra mức độ hiểu bài.
+                </div>
+              </div>
             </button>
           </div>
           <button
@@ -802,6 +841,12 @@ export const StudyAssistant: React.FC<Props> = ({ onBack }) => {
                 <div className="flex items-center gap-2">
                   <FileText className="w-6 h-6 text-blue-600" />
                   <h3 className="text-xl font-bold">Bản tóm tắt</h3>
+                  <div className="group relative">
+                    <HelpCircle className="w-4 h-4 text-neutral-400 cursor-help" />
+                    <div className="absolute left-0 bottom-full mb-2 w-64 p-2 bg-neutral-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 font-normal">
+                      Bản tóm tắt nội dung chính của tài liệu đã được AI phân tích. Bạn có thể sao chép hoặc xuất ra tệp văn bản.
+                    </div>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <button 
@@ -838,6 +883,12 @@ export const StudyAssistant: React.FC<Props> = ({ onBack }) => {
                 <div className="flex items-center gap-2">
                   <Network className="w-6 h-6 text-indigo-600" />
                   <h3 className="text-xl font-bold">Sơ đồ tư duy</h3>
+                  <div className="group relative">
+                    <HelpCircle className="w-4 h-4 text-neutral-400 cursor-help" />
+                    <div className="absolute left-0 bottom-full mb-2 w-64 p-2 bg-neutral-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 font-normal">
+                      Sơ đồ tư duy trực quan giúp bạn nắm bắt cấu trúc kiến thức. Bạn có thể kéo để di chuyển, dùng chuột để phóng to/thu nhỏ.
+                    </div>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="flex items-center bg-neutral-100 rounded-xl p-1 mr-4">
@@ -894,6 +945,12 @@ export const StudyAssistant: React.FC<Props> = ({ onBack }) => {
                   <div className="flex items-center gap-2">
                     <CheckSquare className="w-6 h-6 text-emerald-600" />
                     <h3 className="text-xl font-bold">Câu hỏi trắc nghiệm</h3>
+                    <div className="group relative">
+                      <HelpCircle className="w-4 h-4 text-neutral-400 cursor-help" />
+                      <div className="absolute left-0 bottom-full mb-2 w-64 p-2 bg-neutral-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 font-normal">
+                        Danh sách các câu hỏi trắc nghiệm được AI tạo ra dựa trên nội dung bài học. Bạn có thể làm bài trực tiếp hoặc xuất ra tệp văn bản/sơ đồ.
+                      </div>
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <button 

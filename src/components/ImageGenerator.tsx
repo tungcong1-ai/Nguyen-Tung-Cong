@@ -11,23 +11,21 @@ import {
   User, 
   MapPin,
   GraduationCap,
-  Upload,
   X,
   BookOpen,
   Layers,
   Mic,
   MicOff,
-  Pencil,
   ArrowLeft,
   Home,
   History,
   Trash2,
   Maximize2,
-  RefreshCcw
+  RefreshCcw,
+  HelpCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { generateImage, generateComic, ImageGenerationParams } from '../services/geminiService';
-import { DrawingCanvas } from './DrawingCanvas';
 import { db, auth, collection, addDoc, query, orderBy, limit, onSnapshot, handleFirestoreError, OperationType } from '../firebase';
 import { serverTimestamp } from 'firebase/firestore';
 
@@ -104,7 +102,6 @@ export const ImageGenerator = ({ onBack }: ImageGeneratorProps) => {
     lighting: LIGHTING[0].value,
     color: COLORS[0].value,
     camera: CAMERA_ANGLES[0].value,
-    referenceType: 'composition'
   });
 
   const [isGenerating, setIsGenerating] = useState(false);
@@ -113,14 +110,10 @@ export const ImageGenerator = ({ onBack }: ImageGeneratorProps) => {
   const [isComicMode, setIsComicMode] = useState(false);
   const [numPages, setNumPages] = useState(3);
   const [error, setError] = useState<string | null>(null);
-  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [isListening, setIsListening] = useState<'subject' | 'context' | null>(null);
-  const [isDrawingMode, setIsDrawingMode] = useState(false);
-  const [refMode, setRefMode] = useState<'upload' | 'draw'>('upload');
   const [history, setHistory] = useState<ImageHistoryItem[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<ImageHistoryItem | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!auth.currentUser) return;
@@ -192,17 +185,6 @@ export const ImageGenerator = ({ onBack }: ImageGeneratorProps) => {
     setNumPages(3);
   };
 
-  const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setUploadedImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const handleGenerate = async () => {
     if (!params.subject && !isComicMode) {
       setError('Vui lòng nhập chủ thể!');
@@ -227,14 +209,12 @@ export const ImageGenerator = ({ onBack }: ImageGeneratorProps) => {
           ...params,
           script: params.actionContext,
           numPages: numPages,
-          referenceImage: uploadedImage || undefined
         });
         setComicImages(urls);
         finalComicUrls = urls;
       } else {
         const url = await generateImage({
           ...params,
-          referenceImage: uploadedImage || undefined
         });
         setGeneratedImageUrl(url);
         finalUrl = url;
@@ -321,6 +301,12 @@ export const ImageGenerator = ({ onBack }: ImageGeneratorProps) => {
           <h2 className="text-2xl font-bold flex items-center gap-2">
             <ImageIcon className="w-6 h-6 text-indigo-600" />
             Trình Tạo Ảnh AI
+            <div className="group relative">
+              <HelpCircle className="w-4 h-4 text-neutral-400 cursor-help" />
+              <div className="absolute left-0 bottom-full mb-2 w-64 p-2 bg-neutral-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 font-normal">
+                Sử dụng trí tuệ nhân tạo để tạo ra hình ảnh hoặc truyện tranh từ mô tả văn bản của bạn.
+              </div>
+            </div>
           </h2>
         </div>
         <div className="flex items-center gap-3">
@@ -528,117 +514,6 @@ export const ImageGenerator = ({ onBack }: ImageGeneratorProps) => {
           animate={{ opacity: 1, x: 0 }}
           className="space-y-6 bg-white p-6 rounded-2xl shadow-sm border border-neutral-200"
         >
-          {/* Reference Image Area */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-medium text-neutral-700 flex items-center gap-2">
-                <ImageIcon className="w-4 h-4" /> Ảnh tham khảo
-              </label>
-              <div className="flex p-0.5 bg-neutral-100 rounded-lg">
-                <button
-                  onClick={() => setRefMode('upload')}
-                  className={`px-3 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 ${refMode === 'upload' ? 'bg-white shadow-sm text-indigo-600' : 'text-neutral-500 hover:text-neutral-700'}`}
-                >
-                  <Upload className="w-3 h-3" /> Tải lên
-                </button>
-                <button
-                  onClick={() => setRefMode('draw')}
-                  className={`px-3 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 ${refMode === 'draw' ? 'bg-white shadow-sm text-indigo-600' : 'text-neutral-500 hover:text-neutral-700'}`}
-                >
-                  <Pencil className="w-3 h-3" /> Vẽ minh họa
-                </button>
-              </div>
-            </div>
-
-            {refMode === 'draw' && !uploadedImage && !isDrawingMode ? (
-              <button
-                onClick={() => setIsDrawingMode(true)}
-                className="w-full border-2 border-dashed border-neutral-200 rounded-xl p-8 flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-indigo-400 transition-colors bg-neutral-50 group"
-              >
-                <div className="bg-white p-3 rounded-full shadow-sm group-hover:scale-110 transition-transform">
-                  <Pencil className="w-6 h-6 text-indigo-600" />
-                </div>
-                <p className="text-sm font-medium text-neutral-600">Bắt đầu vẽ minh họa</p>
-                <p className="text-xs text-neutral-400 text-center px-4">Vẽ phác thảo ý tưởng của bạn để AI hiểu bố cục và chi tiết chính xác hơn</p>
-              </button>
-            ) : refMode === 'draw' && isDrawingMode ? (
-              <DrawingCanvas 
-                onSave={(dataUrl) => {
-                  setUploadedImage(dataUrl);
-                  setIsDrawingMode(false);
-                }}
-                onCancel={() => setIsDrawingMode(false)}
-              />
-            ) : (
-              <div 
-                onClick={() => refMode === 'upload' && fileInputRef.current?.click()}
-                className={`border-2 border-dashed border-neutral-200 rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-colors bg-neutral-50 ${refMode === 'upload' ? 'cursor-pointer hover:border-indigo-400' : ''}`}
-              >
-                {uploadedImage ? (
-                  <div className="relative w-full aspect-video rounded-lg overflow-hidden group/img">
-                    <img src={uploadedImage} alt="Reference" className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                      {refMode === 'draw' && (
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); setIsDrawingMode(true); }}
-                          className="bg-white text-neutral-900 p-2 rounded-full hover:bg-neutral-100 shadow-lg"
-                          title="Sửa hình vẽ"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                      )}
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); setUploadedImage(null); }}
-                        className="bg-red-500 text-white p-2 rounded-full hover:bg-red-600 shadow-lg"
-                        title="Xóa ảnh"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <ImageIcon className="w-8 h-8 text-neutral-300" />
-                    <p className="text-xs text-neutral-500">
-                      {refMode === 'upload' ? 'Nhấn để tải lên hoặc kéo thả ảnh' : 'Chưa có hình vẽ minh họa'}
-                    </p>
-                  </>
-                )}
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  className="hidden" 
-                  accept="image/*" 
-                  onChange={handleFileUpload}
-                />
-              </div>
-            )}
-
-            {uploadedImage && (
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">
-                  Mục đích tham khảo
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { id: 'composition', label: 'Bố cục', icon: Layers },
-                    { id: 'style', label: 'Phong cách', icon: Palette },
-                    { id: 'subject', label: 'Chi tiết', icon: User },
-                  ].map((type) => (
-                    <button
-                      key={type.id}
-                      onClick={() => setParams({ ...params, referenceType: type.id as any })}
-                      className={`py-2 px-1 rounded-lg border text-[10px] font-bold transition-all flex flex-col items-center gap-1 ${params.referenceType === type.id ? 'bg-indigo-50 border-indigo-600 text-indigo-600' : 'bg-white border-neutral-200 text-neutral-500 hover:border-indigo-200'}`}
-                    >
-                      <type.icon className="w-3 h-3" />
-                      {type.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
           <div className="space-y-4">
             <h2 className="text-lg font-semibold flex items-center gap-2">
               <Brush className="w-5 h-5 text-indigo-600" />
@@ -646,6 +521,15 @@ export const ImageGenerator = ({ onBack }: ImageGeneratorProps) => {
             </h2>
 
             {/* Mode Toggle */}
+            <div className="flex items-center gap-2 mb-2">
+              <h3 className="text-sm font-bold text-neutral-900 uppercase tracking-wider">Chế độ tạo</h3>
+              <div className="group relative">
+                <HelpCircle className="w-3.5 h-3.5 text-neutral-400 cursor-help" />
+                <div className="absolute left-0 bottom-full mb-2 w-48 p-2 bg-neutral-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 font-normal">
+                  Chọn chế độ tạo một ảnh duy nhất hoặc tạo một trang truyện tranh với nhiều khung hình.
+                </div>
+              </div>
+            </div>
             <div className="flex p-1 bg-neutral-100 rounded-xl">
               <button
                 onClick={() => setIsComicMode(false)}
@@ -665,7 +549,15 @@ export const ImageGenerator = ({ onBack }: ImageGeneratorProps) => {
             {!isComicMode && (
               <div className="space-y-2">
                 <label className="text-sm font-medium text-neutral-700 flex items-center justify-between">
-                  <span className="flex items-center gap-2"><User className="w-4 h-4" /> Chủ thể chính</span>
+                  <span className="flex items-center gap-2">
+                    <User className="w-4 h-4" /> Chủ thể chính
+                    <div className="group relative">
+                      <HelpCircle className="w-3.5 h-3.5 text-neutral-400 cursor-help" />
+                      <div className="absolute left-0 bottom-full mb-2 w-48 p-2 bg-neutral-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 font-normal">
+                        Nhập chủ thể chính bạn muốn tạo (ví dụ: một con mèo, một phi hành gia).
+                      </div>
+                    </div>
+                  </span>
                   <button
                     onClick={() => startListening('subject')}
                     className={`p-1.5 rounded-lg transition-colors ${isListening === 'subject' ? 'bg-red-100 text-red-600 animate-pulse' : 'hover:bg-neutral-100 text-neutral-500'}`}
@@ -690,6 +582,12 @@ export const ImageGenerator = ({ onBack }: ImageGeneratorProps) => {
                 <span className="flex items-center gap-2">
                   {isComicMode ? <BookOpen className="w-4 h-4" /> : <MapPin className="w-4 h-4" />} 
                   {isComicMode ? 'Kịch bản truyện tranh' : 'Hành động & Bối cảnh'}
+                  <div className="group relative">
+                    <HelpCircle className="w-3.5 h-3.5 text-neutral-400 cursor-help" />
+                    <div className="absolute left-0 bottom-full mb-2 w-48 p-2 bg-neutral-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 font-normal">
+                      {isComicMode ? 'Mô tả kịch bản từng trang cho truyện tranh của bạn.' : 'Mô tả hành động của chủ thể và bối cảnh xung quanh.'}
+                    </div>
+                  </div>
                 </span>
                 <button
                   onClick={() => startListening('context')}
@@ -732,6 +630,12 @@ export const ImageGenerator = ({ onBack }: ImageGeneratorProps) => {
               <div className="space-y-2">
                 <label className="text-sm font-medium text-neutral-700 flex items-center gap-2">
                   <ImageIcon className="w-4 h-4" /> Phong cách
+                  <div className="group relative">
+                    <HelpCircle className="w-3.5 h-3.5 text-neutral-400 cursor-help" />
+                    <div className="absolute left-0 bottom-full mb-2 w-48 p-2 bg-neutral-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 font-normal">
+                      Chọn phong cách nghệ thuật cho hình ảnh (ví dụ: Anime, 3D, Phác thảo).
+                    </div>
+                  </div>
                 </label>
                 <select
                   className="w-full px-4 py-2 rounded-xl border border-neutral-200 bg-white outline-none focus:ring-2 focus:ring-indigo-500"
@@ -746,6 +650,12 @@ export const ImageGenerator = ({ onBack }: ImageGeneratorProps) => {
               <div className="space-y-2">
                 <label className="text-sm font-medium text-neutral-700 flex items-center gap-2">
                   <Sun className="w-4 h-4" /> Ánh sáng
+                  <div className="group relative">
+                    <HelpCircle className="w-3.5 h-3.5 text-neutral-400 cursor-help" />
+                    <div className="absolute left-0 bottom-full mb-2 w-48 p-2 bg-neutral-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 font-normal">
+                      Chọn điều kiện ánh sáng để tạo không khí cho ảnh.
+                    </div>
+                  </div>
                 </label>
                 <select
                   className="w-full px-4 py-2 rounded-xl border border-neutral-200 bg-white outline-none focus:ring-2 focus:ring-indigo-500"
@@ -760,6 +670,12 @@ export const ImageGenerator = ({ onBack }: ImageGeneratorProps) => {
               <div className="space-y-2">
                 <label className="text-sm font-medium text-neutral-700 flex items-center gap-2">
                   <Palette className="w-4 h-4" /> Màu sắc
+                  <div className="group relative">
+                    <HelpCircle className="w-3.5 h-3.5 text-neutral-400 cursor-help" />
+                    <div className="absolute left-0 bottom-full mb-2 w-48 p-2 bg-neutral-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 font-normal">
+                      Chọn tông màu chủ đạo cho bức ảnh.
+                    </div>
+                  </div>
                 </label>
                 <select
                   className="w-full px-4 py-2 rounded-xl border border-neutral-200 bg-white outline-none focus:ring-2 focus:ring-indigo-500"
@@ -774,6 +690,12 @@ export const ImageGenerator = ({ onBack }: ImageGeneratorProps) => {
               <div className="space-y-2">
                 <label className="text-sm font-medium text-neutral-700 flex items-center gap-2">
                   <Camera className="w-4 h-4" /> Góc máy
+                  <div className="group relative">
+                    <HelpCircle className="w-3.5 h-3.5 text-neutral-400 cursor-help" />
+                    <div className="absolute left-0 bottom-full mb-2 w-48 p-2 bg-neutral-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 font-normal">
+                      Chọn góc nhìn của máy ảnh (ví dụ: Cận cảnh, Toàn cảnh).
+                    </div>
+                  </div>
                 </label>
                 <select
                   className="w-full px-4 py-2 rounded-xl border border-neutral-200 bg-white outline-none focus:ring-2 focus:ring-indigo-500"

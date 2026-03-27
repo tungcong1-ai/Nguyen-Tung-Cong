@@ -1908,18 +1908,24 @@ export const GameGenerator = ({ onBack }: GameGeneratorProps) => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <button 
-          onClick={onBack}
-          className="p-2 hover:bg-neutral-100 rounded-full transition-colors"
-        >
-          <ArrowLeft className="w-6 h-6" />
-        </button>
-        <h2 className="text-2xl font-bold flex items-center gap-2">
-          <Gamepad2 className="w-6 h-6 text-indigo-600" />
-          Trình Tạo Trò Chơi AI
-        </h2>
-      </div>
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={onBack}
+                className="p-2 hover:bg-neutral-100 rounded-full transition-colors"
+              >
+                <ArrowLeft className="w-6 h-6" />
+              </button>
+              <h2 className="text-2xl font-bold flex items-center gap-2">
+                <Gamepad2 className="w-6 h-6 text-indigo-600" />
+                Trình Tạo Trò Chơi AI
+                <div className="group relative">
+                  <HelpCircle className="w-4 h-4 text-neutral-400 cursor-help" />
+                  <div className="absolute left-0 bottom-full mb-2 w-64 p-2 bg-neutral-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 font-normal">
+                    Sử dụng AI để thiết kế các trò chơi giáo dục tương tác như trắc nghiệm, giải đố, vòng quay, và nhập vai.
+                  </div>
+                </div>
+              </h2>
+            </div>
 
       {!game ? (
         <div className="max-w-7xl mx-auto">
@@ -1934,7 +1940,15 @@ export const GameGenerator = ({ onBack }: GameGeneratorProps) => {
                 {!isManualWheel && !isManualPuzzle && !isManualMaze && !isManualRPG ? (
                   <div className="bg-white p-8 rounded-3xl shadow-sm border border-neutral-200 space-y-6">
                     <div className="text-center space-y-2">
-                      <h3 className="text-xl font-bold">Bạn muốn chơi gì hôm nay?</h3>
+                      <div className="flex items-center justify-center gap-2">
+                        <h3 className="text-xl font-bold">Bạn muốn chơi gì hôm nay?</h3>
+                        <div className="group relative">
+                          <HelpCircle className="w-4 h-4 text-neutral-400 cursor-help" />
+                          <div className="absolute left-0 bottom-full mb-2 w-64 p-2 bg-neutral-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 font-normal">
+                            Nhập mô tả về trò chơi bạn muốn tạo. AI sẽ tự động thiết kế nội dung, câu hỏi và cơ chế chơi phù hợp.
+                          </div>
+                        </div>
+                      </div>
                       <p className="text-neutral-500">Mô tả ý tưởng trò chơi của bạn, AI sẽ tạo ra một trò chơi hoàn chỉnh.</p>
                     </div>
 
@@ -1977,31 +1991,51 @@ export const GameGenerator = ({ onBack }: GameGeneratorProps) => {
                         </button>
                         <button
                           onClick={() => setIsManualWheel(true)}
-                          className="bg-amber-500 hover:bg-amber-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-amber-100 transition-all flex items-center justify-center gap-2"
+                          className="bg-amber-500 hover:bg-amber-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-amber-100 transition-all flex items-center justify-center gap-2 relative group"
                         >
                           <RefreshCcw className="w-5 h-5" />
                           Vòng Quay
+                          <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                            <div className="bg-neutral-900 text-white text-[10px] p-2 rounded-lg w-48 font-normal shadow-xl">
+                              Tạo vòng quay may mắn để chọn ngẫu nhiên học sinh và thử thách.
+                            </div>
+                          </div>
                         </button>
                         <button
                           onClick={() => setIsManualPuzzle(true)}
-                          className="bg-violet-600 hover:bg-violet-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-violet-100 transition-all flex items-center justify-center gap-2"
+                          className="bg-violet-600 hover:bg-violet-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-violet-100 transition-all flex items-center justify-center gap-2 relative group"
                         >
                           <Grid3X3 className="w-5 h-5" />
                           Mở Mảnh Ghép
+                          <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                            <div className="bg-neutral-900 text-white text-[10px] p-2 rounded-lg w-48 font-normal shadow-xl">
+                              Tạo trò chơi lật mảnh ghép để khám phá bức hình bí ẩn đằng sau các câu hỏi.
+                            </div>
+                          </div>
                         </button>
                         <button
                           onClick={() => setIsManualMaze(true)}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-emerald-100 transition-all flex items-center justify-center gap-2"
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-emerald-100 transition-all flex items-center justify-center gap-2 relative group"
                         >
                           <MapIcon className="w-5 h-5" />
                           Mê Cung
+                          <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                            <div className="bg-neutral-900 text-white text-[10px] p-2 rounded-lg w-48 font-normal shadow-xl">
+                              Trò chơi mê cung đòi hỏi người chơi phải trả lời đúng các câu hỏi để tìm đường thoát.
+                            </div>
+                          </div>
                         </button>
                         <button
                           onClick={() => setIsManualRPG(true)}
-                          className="bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-red-100 transition-all flex items-center justify-center gap-2"
+                          className="bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-red-100 transition-all flex items-center justify-center gap-2 relative group"
                         >
                           <Sword className="w-5 h-5" />
                           RPG Hành Trình
+                          <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                            <div className="bg-neutral-900 text-white text-[10px] p-2 rounded-lg w-48 font-normal shadow-xl">
+                              Trò chơi nhập vai phiêu lưu, chiến đấu với quái vật bằng cách trả lời các câu hỏi kiến thức.
+                            </div>
+                          </div>
                         </button>
                       </div>
                     </div>
@@ -2063,7 +2097,15 @@ export const GameGenerator = ({ onBack }: GameGeneratorProps) => {
                     <div className="bg-indigo-100 p-2 rounded-xl">
                       <Users className="w-5 h-5 text-indigo-600" />
                     </div>
-                    <h3 className="text-lg font-bold">Danh sách học sinh</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-lg font-bold">Danh sách học sinh</h3>
+                      <div className="group relative">
+                        <HelpCircle className="w-4 h-4 text-neutral-400 cursor-help" />
+                        <div className="absolute left-0 bottom-full mb-2 w-48 p-2 bg-neutral-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 font-normal">
+                          Tải lên file Excel chứa danh sách tên học sinh để sử dụng trong vòng quay may mắn.
+                        </div>
+                      </div>
+                    </div>
                   </div>
                   <button onClick={() => setIsManualWheel(false)} className="p-1 hover:bg-neutral-100 rounded-full">
                     <X className="w-5 h-5 text-neutral-400" />
