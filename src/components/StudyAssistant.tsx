@@ -18,13 +18,14 @@ import {
   ZoomIn,
   ZoomOut,
   Maximize,
-  RotateCcw
+  RotateCcw,
+  Image as ImageIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import * as d3 from 'd3';
 import * as mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
-import { summarizeText, generateMindMap, generateMCQs, MindMapNode, MCQ, testGeminiConnection } from '../services/geminiService';
+import { summarizeText, generateMindMap, generateMCQs, extractTextFromImage, MindMapNode, MCQ, testGeminiConnection } from '../services/geminiService';
 import { db, auth, handleFirestoreError } from '../firebase';
 import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, deleteDoc, doc } from 'firebase/firestore';
 
@@ -45,6 +46,7 @@ export const StudyAssistant: React.FC<Props> = ({ onBack }) => {
   const [summary, setSummary] = useState('');
   const [mindMapData, setMindMapData] = useState<MindMapNode | null>(null);
   const [mcqs, setMcqs] = useState<MCQ[]>([]);
+  const [mcqCount, setMcqCount] = useState<number>(5);
   const [copied, setCopied] = useState(false);
   const [userAnswers, setUserAnswers] = useState<Record<number, number>>({});
   const [showResults, setShowResults] = useState(false);
@@ -56,6 +58,7 @@ export const StudyAssistant: React.FC<Props> = ({ onBack }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const wordInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const handleWordUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -88,7 +91,24 @@ export const StudyAssistant: React.FC<Props> = ({ onBack }) => {
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
-        const pageText = textContent.items.map((item: any) => item.str).join(' ');
+        let pageText = textContent.items.map((item: any) => item.str).join(' ');
+        
+        // If pageText is very short, it might be a scanned PDF or image-heavy page
+        if (pageText.trim().length < 50) {
+          const viewport = page.getViewport({ scale: 2.0 });
+          const canvas = document.createElement('canvas');
+          const context = canvas.getContext('2d');
+          canvas.height = viewport.height;
+          canvas.width = viewport.width;
+          
+          if (context) {
+            await page.render({ canvasContext: context, viewport, canvas } as any).promise;
+            const base64Image = canvas.toDataURL('image/jpeg').split(',')[1];
+            const extractedText = await extractTextFromImage(base64Image, 'image/jpeg');
+            pageText = extractedText;
+          }
+        }
+        
         fullText += pageText + '\n';
       }
       
@@ -99,6 +119,33 @@ export const StudyAssistant: React.FC<Props> = ({ onBack }) => {
     } finally {
       setIsExtracting(false);
       if (pdfInputRef.current) pdfInputRef.current.value = '';
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsExtracting(true);
+    try {
+      const base64Data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const base64 = (event.target?.result as string).split(',')[1];
+          resolve(base64);
+        };
+        reader.onerror = (error) => reject(error);
+        reader.readAsDataURL(file);
+      });
+
+      const text = await extractTextFromImage(base64Data, file.type);
+      setInputText(text);
+    } catch (error) {
+      console.error('Error parsing image file:', error);
+      alert('Không thể đọc tệp ảnh. Vui lòng kiểm tra lại định dạng.');
+    } finally {
+      setIsExtracting(false);
+      if (imageInputRef.current) imageInputRef.current.value = '';
     }
   };
 
@@ -114,7 +161,7 @@ export const StudyAssistant: React.FC<Props> = ({ onBack }) => {
         result = await generateMindMap(inputText);
         setMindMapData(result);
       } else if (activeTab === 'mcq') {
-        result = await generateMCQs(inputText);
+        result = await generateMCQs(inputText, mcqCount);
         setMcqs(result);
         setUserAnswers({});
         setShowResults(false);
@@ -546,7 +593,7 @@ export const StudyAssistant: React.FC<Props> = ({ onBack }) => {
                 <h1 className="text-lg font-bold leading-tight">Trợ Lý Học Tập AI</h1>
                 <div className="group relative">
                   <HelpCircle className="w-3.5 h-3.5 text-neutral-400 cursor-help" />
-                  <div className="absolute left-0 bottom-full mb-2 w-64 p-2 bg-neutral-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 font-normal">
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-2 bg-neutral-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 font-normal text-center">
                     Trợ lý học tập thông minh sử dụng AI để tóm tắt, tạo sơ đồ tư duy và câu hỏi trắc nghiệm từ tài liệu của bạn.
                   </div>
                 </div>
@@ -565,12 +612,17 @@ export const StudyAssistant: React.FC<Props> = ({ onBack }) => {
           <div className="flex items-center gap-4">
             <button 
               onClick={() => setShowHistory(!showHistory)}
-              className={`p-2 rounded-xl transition-all flex items-center gap-2 font-bold text-sm ${
+              className={`p-2 rounded-xl transition-all flex items-center gap-2 font-bold text-sm group relative ${
                 showHistory ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
               }`}
             >
               <History className="w-5 h-5" />
               Lịch sử
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none">
+                <div className="bg-neutral-900 text-white text-[10px] p-2 rounded-lg w-32 font-normal shadow-xl text-center">
+                  {showHistory ? 'Ẩn lịch sử' : 'Xem lịch sử'}
+                </div>
+              </div>
             </button>
             <div className="w-20" /> {/* Spacer */}
           </div>
@@ -716,7 +768,7 @@ export const StudyAssistant: React.FC<Props> = ({ onBack }) => {
               <h2 className="font-bold text-lg">Văn bản cần xử lý</h2>
               <div className="group relative">
                 <HelpCircle className="w-4 h-4 text-neutral-400 cursor-help" />
-                <div className="absolute left-0 bottom-full mb-2 w-64 p-2 bg-neutral-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 font-normal">
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-2 bg-neutral-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 font-normal text-center">
                   Dán nội dung văn bản hoặc tải lên tệp tài liệu để bắt đầu phân tích.
                 </div>
               </div>
@@ -736,6 +788,13 @@ export const StudyAssistant: React.FC<Props> = ({ onBack }) => {
                 accept=".pdf" 
                 className="hidden" 
               />
+              <input 
+                type="file" 
+                ref={imageInputRef} 
+                onChange={handleImageUpload} 
+                accept="image/*" 
+                className="hidden" 
+              />
               <button 
                 onClick={() => wordInputRef.current?.click()}
                 disabled={isExtracting}
@@ -743,8 +802,8 @@ export const StudyAssistant: React.FC<Props> = ({ onBack }) => {
               >
                 {isExtracting ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileText className="w-3 h-3" />}
                 Word
-                <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                  <div className="bg-neutral-900 text-white text-[10px] p-2 rounded-lg w-48 font-normal shadow-xl">
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none">
+                  <div className="bg-neutral-900 text-white text-[10px] p-2 rounded-lg w-48 font-normal shadow-xl text-center">
                     Tải lên tài liệu Word (.docx) để AI phân tích.
                   </div>
                 </div>
@@ -756,9 +815,22 @@ export const StudyAssistant: React.FC<Props> = ({ onBack }) => {
               >
                 {isExtracting ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileText className="w-3 h-3" />}
                 PDF
-                <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                  <div className="bg-neutral-900 text-white text-[10px] p-2 rounded-lg w-48 font-normal shadow-xl">
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none">
+                  <div className="bg-neutral-900 text-white text-[10px] p-2 rounded-lg w-48 font-normal shadow-xl text-center">
                     Tải lên tài liệu PDF để AI phân tích.
+                  </div>
+                </div>
+              </button>
+              <button 
+                onClick={() => imageInputRef.current?.click()}
+                disabled={isExtracting}
+                className="text-xs font-bold px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors flex items-center gap-1.5 group relative"
+              >
+                {isExtracting ? <Loader2 className="w-3 h-3 animate-spin" /> : <ImageIcon className="w-3 h-3" />}
+                Ảnh
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none">
+                  <div className="bg-neutral-900 text-white text-[10px] p-2 rounded-lg w-48 font-normal shadow-xl text-center">
+                    Tải lên ảnh bài học để AI trích xuất văn bản.
                   </div>
                 </div>
               </button>
@@ -778,8 +850,8 @@ export const StudyAssistant: React.FC<Props> = ({ onBack }) => {
               }`}
             >
               <FileText className="w-5 h-5" /> Tóm tắt
-              <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                <div className="bg-neutral-900 text-white text-[10px] p-2 rounded-lg w-48 font-normal shadow-xl">
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none">
+                <div className="bg-neutral-900 text-white text-[10px] p-2 rounded-lg w-48 font-normal shadow-xl text-center">
                   Tạo bản tóm tắt ngắn gọn, súc tích từ nội dung tài liệu.
                 </div>
               </div>
@@ -791,8 +863,8 @@ export const StudyAssistant: React.FC<Props> = ({ onBack }) => {
               }`}
             >
               <Network className="w-5 h-5" /> Sơ đồ tư duy
-              <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                <div className="bg-neutral-900 text-white text-[10px] p-2 rounded-lg w-48 font-normal shadow-xl">
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none">
+                <div className="bg-neutral-900 text-white text-[10px] p-2 rounded-lg w-48 font-normal shadow-xl text-center">
                   Tự động tạo sơ đồ tư duy trực quan để dễ dàng ghi nhớ kiến thức.
                 </div>
               </div>
@@ -804,13 +876,44 @@ export const StudyAssistant: React.FC<Props> = ({ onBack }) => {
               }`}
             >
               <CheckSquare className="w-5 h-5" /> Câu hỏi trắc nghiệm
-              <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                <div className="bg-neutral-900 text-white text-[10px] p-2 rounded-lg w-48 font-normal shadow-xl">
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none">
+                <div className="bg-neutral-900 text-white text-[10px] p-2 rounded-lg w-48 font-normal shadow-xl text-center">
                   Tạo các câu hỏi trắc nghiệm để kiểm tra mức độ hiểu bài.
                 </div>
               </div>
             </button>
           </div>
+          
+          {activeTab === 'mcq' && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 space-y-3"
+            >
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-bold text-emerald-800 flex items-center gap-2">
+                  <CheckSquare className="w-4 h-4" />
+                  Số lượng câu hỏi muốn tạo:
+                </label>
+                <div className="flex bg-white rounded-xl p-1 shadow-sm border border-emerald-100">
+                  {[3, 5, 10].map((count) => (
+                    <button
+                      key={count}
+                      onClick={() => setMcqCount(count)}
+                      className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        mcqCount === count 
+                          ? 'bg-emerald-600 text-white shadow-md' 
+                          : 'text-neutral-500 hover:bg-neutral-50'
+                      }`}
+                    >
+                      {count} câu
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          )}
+
           <button
             onClick={handleProcess}
             disabled={loading || !inputText.trim()}
@@ -843,7 +946,7 @@ export const StudyAssistant: React.FC<Props> = ({ onBack }) => {
                   <h3 className="text-xl font-bold">Bản tóm tắt</h3>
                   <div className="group relative">
                     <HelpCircle className="w-4 h-4 text-neutral-400 cursor-help" />
-                    <div className="absolute left-0 bottom-full mb-2 w-64 p-2 bg-neutral-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 font-normal">
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-2 bg-neutral-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 font-normal text-center">
                       Bản tóm tắt nội dung chính của tài liệu đã được AI phân tích. Bạn có thể sao chép hoặc xuất ra tệp văn bản.
                     </div>
                   </div>
@@ -885,7 +988,7 @@ export const StudyAssistant: React.FC<Props> = ({ onBack }) => {
                   <h3 className="text-xl font-bold">Sơ đồ tư duy</h3>
                   <div className="group relative">
                     <HelpCircle className="w-4 h-4 text-neutral-400 cursor-help" />
-                    <div className="absolute left-0 bottom-full mb-2 w-64 p-2 bg-neutral-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 font-normal">
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-2 bg-neutral-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 font-normal text-center">
                       Sơ đồ tư duy trực quan giúp bạn nắm bắt cấu trúc kiến thức. Bạn có thể kéo để di chuyển, dùng chuột để phóng to/thu nhỏ.
                     </div>
                   </div>
@@ -947,7 +1050,7 @@ export const StudyAssistant: React.FC<Props> = ({ onBack }) => {
                     <h3 className="text-xl font-bold">Câu hỏi trắc nghiệm</h3>
                     <div className="group relative">
                       <HelpCircle className="w-4 h-4 text-neutral-400 cursor-help" />
-                      <div className="absolute left-0 bottom-full mb-2 w-64 p-2 bg-neutral-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 font-normal">
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-2 bg-neutral-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 font-normal text-center">
                         Danh sách các câu hỏi trắc nghiệm được AI tạo ra dựa trên nội dung bài học. Bạn có thể làm bài trực tiếp hoặc xuất ra tệp văn bản/sơ đồ.
                       </div>
                     </div>

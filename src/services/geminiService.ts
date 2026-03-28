@@ -324,9 +324,9 @@ export const generateMindMap = async (text: string): Promise<MindMapNode> => {
   return JSON.parse(response.text || "{}") as MindMapNode;
 };
 
-export const generateMCQs = async (text: string): Promise<MCQ[]> => {
+export const generateMCQs = async (text: string, count: number = 5): Promise<MCQ[]> => {
   const ai = getAI();
-  const systemInstruction = `Dựa trên văn bản cung cấp, hãy tạo 5 câu hỏi trắc nghiệm để kiểm tra kiến thức.
+  const systemInstruction = `Dựa trên văn bản cung cấp, hãy tạo ${count} câu hỏi trắc nghiệm để kiểm tra kiến thức.
   Mỗi câu hỏi phải có 4 lựa chọn, 1 đáp án đúng và giải thích ngắn gọn.
   Cấu trúc JSON:
   [
@@ -350,4 +350,20 @@ export const generateMCQs = async (text: string): Promise<MCQ[]> => {
     },
   });
   return JSON.parse(response.text || "[]") as MCQ[];
+};
+
+export const extractTextFromImage = async (base64Data: string, mimeType: string): Promise<string> => {
+  const ai = getAI();
+  const response = await ai.models.generateContent({
+    model: 'gemini-3-flash-preview',
+    contents: [
+      {
+        parts: [
+          { text: "Hãy trích xuất toàn bộ văn bản từ hình ảnh này một cách chính xác nhất bằng tiếng Việt. Nếu có bảng biểu, hãy trình bày lại nội dung một cách dễ hiểu." },
+          { inlineData: { data: base64Data, mimeType: mimeType } }
+        ]
+      }
+    ],
+  });
+  return response.text || "";
 };

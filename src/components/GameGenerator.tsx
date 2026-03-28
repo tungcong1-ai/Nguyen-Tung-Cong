@@ -1093,28 +1093,7 @@ export const GameGenerator = ({ onBack }: GameGeneratorProps) => {
                 })}
               </div>
 
-              {/* Victory Overlay */}
-              <AnimatePresence>
-                {finished && (
-                  <motion.div 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="absolute inset-0 bg-black/20 pointer-events-none flex items-center justify-center"
-                  >
-                    <motion.div
-                      initial={{ scale: 0, rotate: -10 }}
-                      animate={{ scale: 1, rotate: 0 }}
-                      className="bg-white/90 backdrop-blur-md px-8 py-4 rounded-3xl shadow-2xl border-4 border-emerald-500 text-emerald-600 flex items-center gap-4"
-                    >
-                      <Trophy className="w-10 h-10" />
-                      <div className="text-left">
-                        <p className="text-xs font-black uppercase tracking-widest opacity-60">Chúc mừng!</p>
-                        <p className="text-2xl font-black">BẠN ĐÃ CHIẾN THẮNG</p>
-                      </div>
-                    </motion.div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              {/* Victory Overlay removed to keep image unobstructed */}
             </div>
             
             <div className="flex justify-between items-center px-4 py-3 bg-white rounded-2xl border border-neutral-100 shadow-sm">
@@ -1213,6 +1192,26 @@ export const GameGenerator = ({ onBack }: GameGeneratorProps) => {
                       </button>
                     </div>
                   )}
+                </motion.div>
+              ) : finished ? (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="bg-emerald-50 p-8 rounded-3xl border border-emerald-100 text-center space-y-6"
+                >
+                  <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto shadow-sm border-4 border-emerald-500">
+                    <Trophy className="w-10 h-10 text-emerald-500" />
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="text-2xl font-black text-emerald-900">BẠN ĐÃ CHIẾN THẮNG!</h4>
+                    <p className="text-emerald-600">Chúc mừng bạn đã lật mở hoàn toàn bức hình bí ẩn.</p>
+                  </div>
+                  <button
+                    onClick={() => setGameState({ revealedPieces: [], currentQuestion: null, showResult: false, isCorrect: null, finished: false })}
+                    className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-700 transition-all shadow-lg"
+                  >
+                    <RefreshCcw className="w-5 h-5" /> Chơi lại
+                  </button>
                 </motion.div>
               ) : (
                 <div className="bg-indigo-50 p-8 rounded-3xl border border-indigo-100 text-center space-y-4">
