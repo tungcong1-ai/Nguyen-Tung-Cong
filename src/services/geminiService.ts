@@ -219,7 +219,7 @@ export const generateGame = async (prompt: string): Promise<GameContent> => {
 
   For 'wheel':
   "content": {
-    "students": ["Tên học sinh 1", "Tên học sinh 2", ...],
+    "students": ["Tên học sinh 1", "Tên học sinh 2", ...], // Tối đa 60 học sinh
     "questions": ["Câu hỏi 1", "Câu hỏi 2", ...]
   }
 

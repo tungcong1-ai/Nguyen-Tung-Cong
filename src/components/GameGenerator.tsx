@@ -52,6 +52,106 @@ interface Question {
   answerIndex: number;
 }
 
+const WheelComponent = ({ students, rotation, customImage }: { students: string[], rotation: number, customImage?: string }) => {
+  const size = 400;
+  const center = size / 2;
+  const radius = size / 2 - 20;
+  const total = students.length;
+  const angleStep = 360 / total;
+
+  return (
+    <div className="relative w-[300px] h-[300px] sm:w-[400px] sm:h-[400px] mx-auto">
+      {/* Pointer */}
+      <div className="absolute -top-6 left-1/2 -translate-x-1/2 z-20">
+        <div className="w-0 h-0 border-l-[20px] border-l-transparent border-r-[20px] border-r-transparent border-t-[40px] border-t-red-600 drop-shadow-xl" />
+      </div>
+      
+      <motion.div 
+        className="w-full h-full rounded-full shadow-[0_0_50px_rgba(0,0,0,0.15)] border-8 border-white overflow-hidden bg-white"
+        animate={{ rotate: rotation }}
+        transition={{ duration: 5, ease: [0.15, 0, 0.15, 1] }}
+      >
+        {customImage ? (
+          <div className="relative w-full h-full">
+            <img src={customImage} className="w-full h-full object-cover" alt="Wheel" referrerPolicy="no-referrer" />
+            <svg width="100%" height="100%" viewBox={`0 0 ${size} ${size}`} className="absolute inset-0 pointer-events-none">
+              {students.map((name, i) => {
+                const angle = i * angleStep + angleStep / 2;
+                const textStart = total > 40 ? radius * 0.4 : total > 20 ? radius * 0.3 : radius * 0.2;
+                
+                return (
+                  <text
+                    key={i}
+                    x={center + textStart}
+                    y={center}
+                    fill="white"
+                    stroke="black"
+                    strokeWidth="0.5"
+                    fontSize={total > 40 ? "8" : total > 20 ? "10" : "12"}
+                    fontWeight="900"
+                    textAnchor="start"
+                    dominantBaseline="middle"
+                    transform={`rotate(${angle - 90}, ${center}, ${center})`}
+                    className="drop-shadow-md"
+                    style={{ paintOrder: 'stroke' }}
+                  >
+                    {name.length > 20 ? name.substring(0, 18) + '..' : name}
+                  </text>
+                );
+              })}
+            </svg>
+          </div>
+        ) : (
+          <svg width="100%" height="100%" viewBox={`0 0 ${size} ${size}`}>
+            {students.map((name, i) => {
+              const startAngle = i * angleStep;
+              const endAngle = (i + 1) * angleStep;
+              const x1 = center + radius * Math.cos((Math.PI * (startAngle - 90)) / 180);
+              const y1 = center + radius * Math.sin((Math.PI * (startAngle - 90)) / 180);
+              const x2 = center + radius * Math.cos((Math.PI * (endAngle - 90)) / 180);
+              const y2 = center + radius * Math.sin((Math.PI * (endAngle - 90)) / 180);
+              
+              const largeArcFlag = angleStep > 180 ? 1 : 0;
+              const pathData = `M ${center} ${center} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
+              
+              const colors = [
+                '#4F46E5', '#7C3AED', '#EC4899', '#F59E0B', '#10B981', '#3B82F6',
+                '#EF4444', '#8B5CF6', '#D946EF', '#06B6D4', '#84CC16', '#F97316'
+              ];
+              
+              const angle = startAngle + angleStep / 2;
+              const textStart = total > 40 ? radius * 0.4 : total > 20 ? radius * 0.3 : radius * 0.2;
+              
+              return (
+                <g key={i}>
+                  <path d={pathData} fill={colors[i % colors.length]} stroke="rgba(255,255,255,0.4)" strokeWidth="1" />
+                  <text
+                    x={center + textStart}
+                    y={center}
+                    fill="white"
+                    fontSize={total > 40 ? "8" : total > 20 ? "10" : "12"}
+                    fontWeight="bold"
+                    textAnchor="start"
+                    dominantBaseline="middle"
+                    transform={`rotate(${angle - 90}, ${center}, ${center})`}
+                    style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}
+                  >
+                    {name.length > 20 ? name.substring(0, 18) + '..' : name}
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+        )}
+      </motion.div>
+      {/* Center Pin */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-white rounded-full shadow-xl z-10 flex items-center justify-center border-4 border-indigo-50">
+        <div className="w-6 h-6 bg-gradient-to-tr from-indigo-600 to-violet-600 rounded-full shadow-inner" />
+      </div>
+    </div>
+  );
+};
+
 interface GameGeneratorProps {
   onBack: () => void;
 }
@@ -72,8 +172,11 @@ export const GameGenerator = ({ onBack }: GameGeneratorProps) => {
   
   // Manual Wheel State
   const [manualStudents, setManualStudents] = useState<string[]>([]);
+  const [manualStudentsText, setManualStudentsText] = useState('');
   const [manualQuestions, setManualQuestions] = useState<Question[]>([]);
+  const [wheelImage, setWheelImage] = useState<string | null>(null);
   const studentInputRef = useRef<HTMLInputElement>(null);
+  const wheelImageInputRef = useRef<HTMLInputElement>(null);
 
   // Manual Puzzle State
   const [puzzleImage, setPuzzleImage] = useState<string | null>(null);
@@ -216,7 +319,7 @@ export const GameGenerator = ({ onBack }: GameGeneratorProps) => {
     } else if (g.type === 'logic') {
       setGameState({ currentPuzzle: 0, solved: false, showHint: false });
     } else if (g.type === 'wheel') {
-      setGameState({ spinning: false, countdown: 0, winner: null, challenges: [], currentQuestion: null, showResult: false, isCorrect: null });
+      setGameState({ spinning: false, countdown: 0, winner: null, challenges: [], rotation: 0, currentQuestion: null, showResult: false, isCorrect: null });
     } else if (g.type === 'puzzle') {
       setGameState({ revealedPieces: [], currentQuestion: null, showResult: false, isCorrect: null, finished: false, showFullScreen: false });
     } else if (g.type === 'maze') {
@@ -274,6 +377,16 @@ export const GameGenerator = ({ onBack }: GameGeneratorProps) => {
     const reader = new FileReader();
     reader.onload = (evt) => {
       setPuzzleImage(evt.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleWheelImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      setWheelImage(evt.target?.result as string);
     };
     reader.readAsDataURL(file);
   };
@@ -482,7 +595,7 @@ export const GameGenerator = ({ onBack }: GameGeneratorProps) => {
       } else if (generatedGame.type === 'logic') {
         setGameState({ currentPuzzle: 0, solved: false, showHint: false });
       } else if (generatedGame.type === 'wheel') {
-        setGameState({ spinning: false, countdown: 0, winner: null, challenges: [] });
+        setGameState({ spinning: false, countdown: 0, winner: null, challenges: [], rotation: 0, currentQuestion: null, showResult: false, isCorrect: null });
       } else if (generatedGame.type === 'puzzle') {
         setGameState({ revealedPieces: [], currentQuestion: null, showResult: false, isCorrect: null, finished: false, showFullScreen: false });
       } else if (generatedGame.type === 'maze') {
@@ -533,13 +646,29 @@ export const GameGenerator = ({ onBack }: GameGeneratorProps) => {
         
         const names = data.flat().filter(cell => cell && typeof cell === 'string' && cell.trim().length > 0);
         if (names.length === 0) throw new Error('Không tìm thấy danh sách tên trong file.');
+        if (names.length > 60) {
+          setError('Danh sách học sinh tối đa là 60 người. File của bạn có ' + names.length + ' người.');
+          return;
+        }
         setManualStudents(names);
+        setManualStudentsText(names.join('\n'));
         setError(null);
       } catch (err: any) {
         setError('Lỗi khi đọc file Excel: ' + err.message);
       }
     };
     reader.readAsBinaryString(file);
+  };
+
+  const handleManualStudentsChange = (text: string) => {
+    setManualStudentsText(text);
+    const names = text.split('\n').map(n => n.trim()).filter(n => n.length > 0);
+    if (names.length > 60) {
+      setError('Danh sách học sinh tối đa là 60 người.');
+    } else {
+      setError(null);
+    }
+    setManualStudents(names);
   };
 
   const parseQuestions = (text: string) => {
@@ -620,7 +749,8 @@ export const GameGenerator = ({ onBack }: GameGeneratorProps) => {
       content: {
         students: manualStudents,
         questions: shuffledQuestions.map(q => q.text), // Simplified for the existing renderWheel
-        fullQuestions: shuffledQuestions // Store full info for enhanced UI
+        fullQuestions: shuffledQuestions, // Store full info for enhanced UI
+        wheelImage: wheelImage
       }
     };
 
@@ -630,6 +760,7 @@ export const GameGenerator = ({ onBack }: GameGeneratorProps) => {
       countdown: 0, 
       winner: null, 
       challenges: [],
+      rotation: 0,
       currentQuestion: null,
       showResult: false,
       isCorrect: null
@@ -824,42 +955,43 @@ export const GameGenerator = ({ onBack }: GameGeneratorProps) => {
 
   const renderWheel = () => {
     if (!game || game.type !== 'wheel') return null;
-    const { spinning, countdown, winner, challenges } = gameState;
+    const { spinning, rotation, winner, challenges } = gameState;
 
     const spin = async () => {
+      if (spinning) return;
+
+      const students = game.content.students;
+      const questions = game.content.fullQuestions || game.content.questions.map((q: string) => ({ text: q, options: [], answerIndex: -1 }));
+      
+      const winnerIndex = Math.floor(Math.random() * students.length);
+      const luckyStudent = students[winnerIndex];
+      const luckyQuestion = questions[Math.floor(Math.random() * questions.length)];
+
+      const angleStep = 360 / students.length;
+      const extraSpins = 5 + Math.floor(Math.random() * 5);
+      const targetRotation = rotation + (extraSpins * 360) + (360 - (winnerIndex * angleStep + angleStep / 2));
+
       setGameState({ 
         ...gameState, 
         spinning: true, 
-        countdown: 3, 
         winner: null, 
         challenges: [],
         currentQuestion: null,
         showResult: false,
-        isCorrect: null
+        isCorrect: null,
+        rotation: targetRotation
       });
       
-      // Countdown effect
-      for (let i = 2; i >= 0; i--) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        setGameState(prev => ({ ...prev, countdown: i }));
-      }
+      // Wait for animation
+      await new Promise(resolve => setTimeout(resolve, 4000));
 
-      // Select winner and challenges
-      const students = game.content.students;
-      const questions = game.content.fullQuestions || game.content.questions.map((q: string) => ({ text: q, options: [], answerIndex: -1 }));
-      
-      const luckyStudent = students[Math.floor(Math.random() * students.length)];
-      const luckyQuestion = questions[Math.floor(Math.random() * questions.length)];
-
-      setGameState({ 
+      setGameState(prev => ({ 
+        ...prev,
         spinning: false, 
-        countdown: 0, 
         winner: luckyStudent, 
         challenges: [luckyQuestion.text],
-        currentQuestion: luckyQuestion,
-        showResult: false,
-        isCorrect: null
-      });
+        currentQuestion: luckyQuestion
+      }));
     };
 
     const handleAnswer = (idx: number) => {
@@ -870,16 +1002,16 @@ export const GameGenerator = ({ onBack }: GameGeneratorProps) => {
 
     return (
       <div className="space-y-8 max-w-xl mx-auto">
+        <div className="py-8">
+          <WheelComponent 
+            students={game.content.students} 
+            rotation={rotation} 
+            customImage={game.content.wheelImage} 
+          />
+        </div>
+
         {!winner && !spinning && (
-          <div className="text-center space-y-6 py-12">
-            <div className="relative inline-block">
-              <div className="w-32 h-32 bg-indigo-600 rounded-full flex items-center justify-center animate-bounce shadow-xl shadow-indigo-200">
-                <RefreshCcw className="w-16 h-16 text-white" />
-              </div>
-              <div className="absolute -top-2 -right-2 bg-amber-400 text-white p-2 rounded-full shadow-lg">
-                <Star className="w-6 h-6 fill-current" />
-              </div>
-            </div>
+          <div className="text-center space-y-6">
             <div className="space-y-2">
               <h3 className="text-2xl font-bold">Sẵn sàng quay số?</h3>
               <p className="text-neutral-500">Nhấn nút bên dưới để tìm chủ nhân may mắn của thử thách hôm nay!</p>
@@ -894,22 +1026,12 @@ export const GameGenerator = ({ onBack }: GameGeneratorProps) => {
         )}
 
         {spinning && (
-          <div className="text-center space-y-8 py-12">
-            <motion.div 
-              key={countdown}
-              initial={{ scale: 0.5, opacity: 0 }}
-              animate={{ scale: 1.5, opacity: 1 }}
-              className="text-8xl font-black text-indigo-600"
-            >
-              {countdown > 0 ? countdown : "🎡"}
-            </motion.div>
-            <div className="space-y-2">
-              <h3 className="text-2xl font-bold animate-pulse">Đang tìm chủ nhân may mắn...</h3>
-              <div className="flex justify-center gap-2">
-                <div className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
-                <div className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
-                <div className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
-              </div>
+          <div className="text-center space-y-4">
+            <h3 className="text-2xl font-bold animate-pulse text-indigo-600">Đang tìm chủ nhân may mắn...</h3>
+            <div className="flex justify-center gap-2">
+              <div className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
+              <div className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+              <div className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
             </div>
           </div>
         )}
@@ -2162,7 +2284,7 @@ export const GameGenerator = ({ onBack }: GameGeneratorProps) => {
                       <div className="group relative">
                         <HelpCircle className="w-4 h-4 text-neutral-400 cursor-help" />
                         <div className="absolute left-0 bottom-full mb-2 w-48 p-2 bg-neutral-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 font-normal">
-                          Tải lên file Excel chứa danh sách tên học sinh để sử dụng trong vòng quay may mắn.
+                          Tải lên file Excel chứa danh sách tên học sinh (tối đa 60 người) để sử dụng trong vòng quay may mắn.
                         </div>
                       </div>
                     </div>
@@ -2187,6 +2309,16 @@ export const GameGenerator = ({ onBack }: GameGeneratorProps) => {
                   />
                 </div>
 
+                <div className="space-y-2">
+                  <p className="text-sm font-bold text-neutral-600">Hoặc nhập tên thủ công (mỗi dòng một tên):</p>
+                  <textarea 
+                    className="w-full h-32 px-4 py-3 rounded-2xl border border-neutral-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-mono"
+                    placeholder="Nguyễn Văn A&#10;Trần Thị B..."
+                    value={manualStudentsText}
+                    onChange={(e) => handleManualStudentsChange(e.target.value)}
+                  />
+                </div>
+
                 {manualStudents.length > 0 && (
                   <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
                     <p className="text-sm font-bold text-indigo-700 flex items-center gap-2">
@@ -2194,6 +2326,59 @@ export const GameGenerator = ({ onBack }: GameGeneratorProps) => {
                     </p>
                   </div>
                 )}
+              </div>
+
+              {/* Wheel Preview */}
+              <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm space-y-4 flex flex-col items-center justify-center">
+                <div className="flex items-center gap-3 w-full">
+                  <div className="bg-indigo-100 p-2 rounded-xl">
+                    <RefreshCcw className="w-5 h-5 text-indigo-600" />
+                  </div>
+                  <h3 className="text-lg font-bold">Xem trước vòng quay</h3>
+                </div>
+                
+                {manualStudents.length > 0 ? (
+                  <div className="scale-75 origin-center">
+                    <WheelComponent 
+                      students={manualStudents} 
+                      rotation={0} 
+                      customImage={wheelImage || undefined} 
+                    />
+                  </div>
+                ) : (
+                  <div className="w-48 h-48 rounded-full border-4 border-dashed border-neutral-100 flex items-center justify-center text-neutral-300 text-center p-4">
+                    <p className="text-xs">Nhập danh sách học sinh để xem trước vòng quay</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Wheel Image Import */}
+              <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-violet-100 p-2 rounded-xl">
+                    <ImageIcon className="w-5 h-5 text-violet-600" />
+                  </div>
+                  <h3 className="text-lg font-bold">Hình ảnh vòng quay (Tùy chọn)</h3>
+                </div>
+                
+                <div 
+                  onClick={() => wheelImageInputRef.current?.click()}
+                  className="border-2 border-dashed border-neutral-200 rounded-2xl p-8 flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-indigo-400 transition-colors bg-neutral-50 relative overflow-hidden group"
+                >
+                  {wheelImage ? (
+                    <img src={wheelImage} className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:opacity-30 transition-opacity" alt="Wheel" />
+                  ) : (
+                    <ImageIcon className="w-8 h-8 text-neutral-300" />
+                  )}
+                  <p className="text-sm font-medium text-neutral-600 relative z-10">{wheelImage ? 'Thay đổi ảnh vòng quay' : 'Tải lên ảnh vòng quay'}</p>
+                  <input 
+                    type="file" 
+                    ref={wheelImageInputRef} 
+                    className="hidden" 
+                    accept="image/*" 
+                    onChange={handleWheelImageUpload}
+                  />
+                </div>
               </div>
 
               {/* Questions Import */}
