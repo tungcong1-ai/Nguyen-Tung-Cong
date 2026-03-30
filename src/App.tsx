@@ -31,11 +31,12 @@ export default function App() {
         const userRef = doc(db, 'users', currentUser.uid);
         await setDoc(userRef, {
           uid: currentUser.uid,
-          email: currentUser.email,
-          displayName: currentUser.displayName,
-          photoURL: currentUser.photoURL,
+          email: currentUser.email || null,
+          displayName: currentUser.displayName || (currentUser.isAnonymous ? 'Khách' : 'Người dùng'),
+          photoURL: currentUser.photoURL || null,
+          isAnonymous: currentUser.isAnonymous,
           lastLogin: new Date().toISOString(),
-          createdAt: new Date().toISOString() // In a real app, you'd check if it exists first
+          createdAt: new Date().toISOString()
         }, { merge: true });
       }
     });
@@ -80,7 +81,9 @@ export default function App() {
                     ) : (
                       <UserIcon className="w-4 h-4 text-neutral-500" />
                     )}
-                    <span className="text-xs font-bold text-neutral-700 hidden sm:inline">{user.displayName}</span>
+                    <span className="text-xs font-bold text-neutral-700 hidden sm:inline">
+                      {user.displayName || (user.isAnonymous ? 'Khách' : 'Người dùng')}
+                    </span>
                   </div>
                   <button 
                     onClick={handleLogout}
