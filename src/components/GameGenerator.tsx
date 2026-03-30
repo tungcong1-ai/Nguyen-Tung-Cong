@@ -1001,114 +1001,148 @@ export const GameGenerator = ({ onBack }: GameGeneratorProps) => {
     };
 
     return (
-      <div className="space-y-8 max-w-xl mx-auto">
-        <div className="py-8">
-          <WheelComponent 
-            students={game.content.students} 
-            rotation={rotation} 
-            customImage={game.content.wheelImage} 
-          />
-        </div>
-
-        {!winner && !spinning && (
-          <div className="text-center space-y-6">
-            <div className="space-y-2">
-              <h3 className="text-2xl font-bold">Sẵn sàng quay số?</h3>
-              <p className="text-neutral-500">Nhấn nút bên dưới để tìm chủ nhân may mắn của thử thách hôm nay!</p>
-            </div>
-            <button
-              onClick={spin}
-              className="px-12 py-4 bg-indigo-600 text-white rounded-2xl font-black text-xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 hover:scale-105 transition-all flex items-center gap-3 mx-auto"
-            >
-              <RefreshCcw className="w-6 h-6" /> QUAY NGAY
-            </button>
-          </div>
-        )}
-
+      <div className={`space-y-8 mx-auto transition-all duration-500 ${winner && !spinning ? 'max-w-5xl' : 'max-w-xl'}`}>
+        {/* Fullscreen Wheel while spinning */}
         {spinning && (
-          <div className="text-center space-y-4">
-            <h3 className="text-2xl font-bold animate-pulse text-indigo-600">Đang tìm chủ nhân may mắn...</h3>
-            <div className="flex justify-center gap-2">
-              <div className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
-              <div className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
-              <div className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
+          <div className="fixed inset-0 z-[100] bg-white flex flex-col items-center justify-center p-4 sm:p-8 overflow-hidden">
+            <motion.div 
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="relative w-full max-w-4xl aspect-square flex items-center justify-center"
+            >
+              <div className="scale-[1.2] sm:scale-[1.8] md:scale-[2]">
+                <WheelComponent 
+                  students={game.content.students} 
+                  rotation={rotation} 
+                  customImage={game.content.wheelImage} 
+                />
+              </div>
+            </motion.div>
+            
+            <div className="mt-12 text-center space-y-6 relative z-10">
+              <h3 className="text-3xl sm:text-5xl font-black animate-pulse text-indigo-600 tracking-tight">
+                ĐANG TÌM CHỦ NHÂN MAY MẮN...
+              </h3>
+              <div className="flex justify-center gap-3">
+                {[0, 0.2, 0.4].map((delay) => (
+                  <div 
+                    key={delay}
+                    className="w-4 h-4 bg-indigo-600 rounded-full animate-bounce" 
+                    style={{ animationDelay: `${delay}s` }} 
+                  />
+                ))}
+              </div>
             </div>
           </div>
         )}
 
-        {winner && (
+        {/* Normal view before spinning */}
+        {!winner && !spinning && (
+          <>
+            <div className="py-8">
+              <WheelComponent 
+                students={game.content.students} 
+                rotation={rotation} 
+                customImage={game.content.wheelImage} 
+              />
+            </div>
+            <div className="text-center space-y-6">
+              <div className="space-y-2">
+                <h3 className="text-2xl font-bold">Sẵn sàng quay số?</h3>
+                <p className="text-neutral-500">Nhấn nút bên dưới để tìm chủ nhân may mắn của thử thách hôm nay!</p>
+              </div>
+              <button
+                onClick={spin}
+                className="px-12 py-4 bg-indigo-600 text-white rounded-2xl font-black text-xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 hover:scale-105 transition-all flex items-center gap-3 mx-auto"
+              >
+                <RefreshCcw className="w-6 h-6" /> QUAY NGAY
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Result view after spinning (Wheel disappears) */}
+        {winner && !spinning && (
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="space-y-6"
+            className="space-y-6 w-full"
           >
-            <div className="bg-gradient-to-br from-indigo-600 to-violet-700 p-8 rounded-3xl text-white text-center shadow-2xl relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-4 opacity-10">
-                <Trophy className="w-32 h-32" />
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-stretch">
+              {/* Congratulations Banner */}
+              <div className="lg:col-span-2 bg-gradient-to-br from-indigo-600 to-violet-700 p-8 rounded-[2.5rem] text-white text-center shadow-2xl relative overflow-hidden flex flex-col justify-center min-h-[300px]">
+                <div className="absolute top-0 right-0 p-4 opacity-10">
+                  <Trophy className="w-32 h-32" />
+                </div>
+                <Star className="w-8 h-8 text-amber-400 mx-auto mb-4 fill-current" />
+                <p className="text-indigo-100 font-bold uppercase tracking-widest text-xs mb-2">Chúc mừng bạn</p>
+                <h3 className="text-4xl font-black mb-6 leading-tight">{winner.toUpperCase()}</h3>
+                <div className="inline-flex items-center gap-2 bg-white/20 px-4 py-2 rounded-full text-xs font-bold backdrop-blur-sm mx-auto">
+                  <Trophy className="w-4 h-4 text-amber-400" /> Chủ nhân may mắn
+                </div>
               </div>
-              <Star className="w-8 h-8 text-amber-400 mx-auto mb-4 fill-current" />
-              <p className="text-indigo-100 font-bold uppercase tracking-widest text-sm mb-2">Chúc mừng bạn</p>
-              <h3 className="text-4xl font-black mb-4">{winner.toUpperCase()}</h3>
-              <div className="inline-flex items-center gap-2 bg-white/20 px-4 py-2 rounded-full text-sm font-bold backdrop-blur-sm">
-                <Trophy className="w-4 h-4 text-amber-400" /> Chủ nhân may mắn
-              </div>
+
+              {/* Question Section */}
+              {gameState.currentQuestion && (
+                <div className="lg:col-span-3 bg-white p-8 rounded-[2.5rem] border border-neutral-200 shadow-xl space-y-6 flex flex-col justify-center">
+                  <div className="space-y-4">
+                    <h4 className="font-bold text-neutral-400 uppercase tracking-widest text-[10px] flex items-center gap-2">
+                      <HelpCircle className="w-4 h-4" /> Thử thách dành cho bạn
+                    </h4>
+                    <p className="text-2xl font-black text-neutral-800 leading-snug">{gameState.currentQuestion.text}</p>
+                  </div>
+                  
+                  {gameState.currentQuestion.options.length > 0 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {gameState.currentQuestion.options.map((opt: string, idx: number) => (
+                        <button
+                          key={idx}
+                          disabled={gameState.showResult}
+                          onClick={() => handleAnswer(idx)}
+                          className={`p-4 text-left rounded-2xl border-2 transition-all font-bold flex items-center gap-3 group ${
+                            gameState.showResult 
+                              ? idx === gameState.currentQuestion.answerIndex
+                                ? 'bg-emerald-50 border-emerald-500 text-emerald-700'
+                                : 'bg-neutral-50 border-neutral-100 text-neutral-400'
+                              : 'bg-white border-neutral-100 hover:border-indigo-500 hover:bg-indigo-50 text-neutral-700'
+                          }`}
+                        >
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${
+                            gameState.showResult && idx === gameState.currentQuestion.answerIndex
+                              ? 'bg-emerald-500 text-white'
+                              : 'bg-neutral-100 text-neutral-500 group-hover:bg-indigo-100 group-hover:text-indigo-600'
+                          }`}>
+                            {String.fromCharCode(65 + idx)}
+                          </div>
+                          <span className="text-sm">{opt}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {gameState.showResult && (
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className={`p-5 rounded-2xl text-center font-black text-xl shadow-inner ${
+                        gameState.isCorrect ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                      }`}
+                    >
+                      {gameState.isCorrect ? 'CHÍNH XÁC! 🎉' : 'TIẾC QUÁ, SAI RỒI! 😢'}
+                    </motion.div>
+                  )}
+                </div>
+              )}
             </div>
 
-            {gameState.currentQuestion && (
-              <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm space-y-4">
-                <h4 className="font-bold text-neutral-500 uppercase tracking-wider text-xs flex items-center gap-2">
-                  <HelpCircle className="w-4 h-4" /> Thử thách dành cho bạn
-                </h4>
-                <p className="text-xl font-bold text-neutral-800">{gameState.currentQuestion.text}</p>
-                
-                {gameState.currentQuestion.options.length > 0 && (
-                  <div className="grid grid-cols-1 gap-2">
-                    {gameState.currentQuestion.options.map((opt: string, idx: number) => (
-                      <button
-                        key={idx}
-                        disabled={gameState.showResult}
-                        onClick={() => handleAnswer(idx)}
-                        className={`p-4 text-left rounded-xl border-2 transition-all font-bold flex items-center gap-3 ${
-                          gameState.showResult 
-                            ? idx === gameState.currentQuestion.answerIndex
-                              ? 'bg-emerald-50 border-emerald-500 text-emerald-700'
-                              : 'bg-neutral-50 border-neutral-100 text-neutral-400'
-                            : 'bg-white border-neutral-100 hover:border-indigo-500 hover:bg-indigo-50 text-neutral-700'
-                        }`}
-                      >
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                          gameState.showResult && idx === gameState.currentQuestion.answerIndex
-                            ? 'bg-emerald-500 text-white'
-                            : 'bg-neutral-100 text-neutral-500'
-                        }`}>
-                          {String.fromCharCode(65 + idx)}
-                        </div>
-                        {opt}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {gameState.showResult && (
-                  <motion.div 
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className={`p-4 rounded-2xl text-center font-black text-xl ${
-                      gameState.isCorrect ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
-                    }`}
-                  >
-                    {gameState.isCorrect ? 'CHÍNH XÁC! 🎉' : 'TIẾC QUÁ, SAI RỒI! 😢'}
-                  </motion.div>
-                )}
-              </div>
-            )}
-
-            <button
-              onClick={spin}
-              className="w-full py-4 bg-neutral-900 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-neutral-800 transition-all"
-            >
-              <RefreshCcw className="w-5 h-5" /> Quay tiếp
-            </button>
+            <div className="flex justify-center pt-4">
+              <button
+                onClick={spin}
+                className="w-full max-w-md py-5 bg-neutral-900 text-white rounded-[2rem] font-black text-lg flex items-center justify-center gap-3 hover:bg-neutral-800 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl"
+              >
+                <RefreshCcw className="w-6 h-6" /> QUAY TIẾP
+              </button>
+            </div>
           </motion.div>
         )}
       </div>
