@@ -218,7 +218,7 @@ export const GameGenerator = ({ onBack }: GameGeneratorProps) => {
     } else if (g.type === 'wheel') {
       setGameState({ spinning: false, countdown: 0, winner: null, challenges: [], currentQuestion: null, showResult: false, isCorrect: null });
     } else if (g.type === 'puzzle') {
-      setGameState({ revealedPieces: [], currentQuestion: null, showResult: false, isCorrect: null, finished: false });
+      setGameState({ revealedPieces: [], currentQuestion: null, showResult: false, isCorrect: null, finished: false, showFullScreen: false });
     } else if (g.type === 'maze') {
       const size = 8;
       const maze = generateMazeData(size);
@@ -306,7 +306,8 @@ export const GameGenerator = ({ onBack }: GameGeneratorProps) => {
       currentQuestion: null,
       showResult: false,
       isCorrect: null,
-      finished: false
+      finished: false,
+      showFullScreen: false
     });
     setIsManualPuzzle(false);
   };
@@ -483,7 +484,7 @@ export const GameGenerator = ({ onBack }: GameGeneratorProps) => {
       } else if (generatedGame.type === 'wheel') {
         setGameState({ spinning: false, countdown: 0, winner: null, challenges: [] });
       } else if (generatedGame.type === 'puzzle') {
-        setGameState({ revealedPieces: [], currentQuestion: null, showResult: false, isCorrect: null, finished: false });
+        setGameState({ revealedPieces: [], currentQuestion: null, showResult: false, isCorrect: null, finished: false, showFullScreen: false });
       } else if (generatedGame.type === 'maze') {
         const size = 8;
         const maze = generateMazeData(size);
@@ -1013,16 +1014,30 @@ export const GameGenerator = ({ onBack }: GameGeneratorProps) => {
       
       if (correct) {
         const nextRevealed = [...revealedPieces, currentQuestion];
+        const isFinished = nextRevealed.length === totalPieces;
         setGameState({ 
           ...gameState, 
           isCorrect: true, 
           showResult: true, 
           revealedPieces: nextRevealed,
-          finished: nextRevealed.length === totalPieces
+          finished: isFinished,
+          showFullScreen: isFinished
         });
       } else {
         setGameState({ ...gameState, isCorrect: false, showResult: true });
       }
+    };
+
+    const revealAll = () => {
+      const allPieces = Array.from({ length: totalPieces }, (_, i) => i);
+      setGameState({ 
+        ...gameState, 
+        revealedPieces: allPieces, 
+        finished: true,
+        showFullScreen: true,
+        currentQuestion: null,
+        showResult: false
+      });
     };
 
     return (
@@ -1115,6 +1130,14 @@ export const GameGenerator = ({ onBack }: GameGeneratorProps) => {
                   </div>
                 </div>
               </div>
+              {!finished && (
+                <button 
+                  onClick={revealAll}
+                  className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold text-sm flex items-center gap-2 transition-all shadow-lg shadow-amber-100"
+                >
+                  <Grid3X3 className="w-4 h-4" /> Mở tất cả
+                </button>
+              )}
             </div>
           </div>
 
@@ -1207,10 +1230,16 @@ export const GameGenerator = ({ onBack }: GameGeneratorProps) => {
                     <p className="text-emerald-600">Chúc mừng bạn đã lật mở hoàn toàn bức hình bí ẩn.</p>
                   </div>
                   <button
-                    onClick={() => setGameState({ revealedPieces: [], currentQuestion: null, showResult: false, isCorrect: null, finished: false })}
+                    onClick={() => setGameState({ revealedPieces: [], currentQuestion: null, showResult: false, isCorrect: null, finished: false, showFullScreen: false })}
                     className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-700 transition-all shadow-lg"
                   >
                     <RefreshCcw className="w-5 h-5" /> Chơi lại
+                  </button>
+                  <button
+                    onClick={() => setGameState({ ...gameState, showFullScreen: true })}
+                    className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all shadow-lg mt-3"
+                  >
+                    <ImageIcon className="w-5 h-5" /> Xem ảnh nền
                   </button>
                 </motion.div>
               ) : (
@@ -1227,6 +1256,38 @@ export const GameGenerator = ({ onBack }: GameGeneratorProps) => {
             </AnimatePresence>
           </div>
         </div>
+        <AnimatePresence>
+          {gameState.showFullScreen && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center p-4"
+            >
+              <button 
+                onClick={() => setGameState({ ...gameState, showFullScreen: false })}
+                className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all z-[110]"
+              >
+                <X className="w-8 h-8" />
+              </button>
+              <img 
+                src={game.content.image} 
+                className="max-w-full max-h-full object-contain shadow-2xl"
+                alt="Revealed"
+                referrerPolicy="no-referrer"
+              />
+              <motion.div 
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="mt-8 text-center"
+              >
+                <h2 className="text-4xl font-black text-white drop-shadow-lg mb-2">Chúc mừng!</h2>
+                <p className="text-white/70 text-lg">Bạn đã khám phá toàn bộ bức hình bí ẩn.</p>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     );
   };
